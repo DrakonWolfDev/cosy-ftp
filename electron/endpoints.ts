@@ -8,6 +8,7 @@ import type { Readable, Writable } from 'node:stream';
 import { Client as FtpClient, FTPError } from 'basic-ftp';
 import { Client as SshClient, type SFTPWrapper, type Stats, type Attributes } from 'ssh2';
 import type { Entry, Profile } from '../shared/types';
+import { ftpsCertificateError } from './tls-errors';
 
 export interface Endpoint {
   readonly remote: boolean;
@@ -319,17 +320,24 @@ export class FtpEndpoint implements Endpoint {
   async connect(password: string | undefined) {
     if (this.profile.protocol === 'ftp' && !this.profile.allowInsecure)
       throw new Error('Unencrypted FTP was not permitted');
-    await this.client.access({
-      host: this.profile.host,
-      port: this.profile.port,
-      user: this.profile.username,
-      password,
-      secure: this.profile.protocol === 'ftps',
-      secureOptions: {
-        rejectUnauthorized: true,
-        ...(isIP(this.profile.host) ? {} : { servername: this.profile.host }),
-      },
-    });
+    try {
+      await this.client.access({
+        host: this.profile.host,
+        port: this.profile.port,
+        user: this.profile.username,
+        password,
+        secure: this.profile.protocol === 'ftps',
+        secureOptions: {
+          rejectUnauthorized: true,
+          ...(isIP(this.profile.host) ? {} : { servername: this.profile.host }),
+        },
+      });
+    } catch (error) {
+      this.client.close();
+      throw this.profile.protocol === 'ftps'
+        ? (ftpsCertificateError(error, this.profile.host) ?? error)
+        : error;
+    }
   }
   async list(directory: string): Promise<Entry[]> {
     return (await this.client.list(directory))

@@ -22,6 +22,10 @@ Working copies and their original content hashes are persisted under the applica
 
 After restart, open the editor strip. For remote drafts, reconnect the same saved connection and choose **Use reconnected session** before saving. The server identity and original content are checked again. Changed connection details cannot silently redirect an old draft to another server. Recovery files contain your text in plaintext under your own OS account, like a normal editor recovery folder; they are not encrypted. Close/discard a working copy to remove it.
 
+## FTPS certificate errors
+
+An unverified certificate error happens before password authentication. Check the server certificate's validity dates, hostname and full certificate chain with the server administrator. A self-signed certificate or missing intermediate can cause an "unable to verify the first certificate" error; changing the account password does not correct certificate trust. The desktop app now gives certificate-specific guidance instead of exposing Node.js command-line suggestions. Certificate verification stays enabled.
+
 ## Credentials and trust
 
 Profiles and SSH fingerprints live in `connections.json` under the Electron user-data directory (`%APPDATA%/cosy-ftp` on Windows, usually `~/.config/cosy-ftp` on Linux). Passwords are remembered only on request and encrypted using Electron's asynchronous OS-backed safeStorage. Insecure Linux `basic_text` storage is refused. If secure storage is unavailable, use session-only passwords. Different Linux keyring/desktop configurations still require field testing.
