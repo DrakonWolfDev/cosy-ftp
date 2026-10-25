@@ -56,7 +56,7 @@ export class Sessions {
         password,
         pending: Promise.resolve(),
       });
-      return info;
+      return { ...info };
     } catch (error) {
       endpoint.close();
       throw error;
@@ -78,6 +78,22 @@ export class Sessions {
     const session = this.get(id);
     return session.profile ? this.make(session.profile, session.password) : new LocalEndpoint();
   }
+  reconnect(id: string): Promise<SessionInfo> {
+    const session = this.get(id);
+    if (!session.profile)
+      return Promise.reject(new Error('Local folders do not need reconnecting'));
+    return this.with(id, async () => {
+      const replacement = await this.make(session.profile!, session.password);
+      if (this.sessions.get(id) !== session) {
+        replacement.close();
+        throw new Error('Session disconnected while reconnecting');
+      }
+      const previous = session.endpoint;
+      session.endpoint = replacement;
+      previous.close();
+      return { ...session.info };
+    });
+  }
   with<T>(id: string, operation: (endpoint: Endpoint) => Promise<T>): Promise<T> {
     const session = this.get(id);
     const task = session.pending.then(() => {
@@ -91,6 +107,7 @@ export class Sessions {
     return this.with(location.sessionId, async (endpoint) => {
       const directory = await endpoint.canonical(location.path);
       const entries = await endpoint.list(directory);
+      this.get(location.sessionId).info.path = directory;
       entries.sort(
         (a, b) =>
           Number(b.kind === 'directory') - Number(a.kind === 'directory') ||

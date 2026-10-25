@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { selectionRange, sortEntries, type SortField, type SortDirection } from './file-list';
 import {
   ArrowDown,
   ArrowLeft,
@@ -91,6 +92,7 @@ interface PaneProps {
   onEdit(location: Location): void;
   onError(error: unknown): void;
   onTransfer(side: 'left' | 'right', names?: string[]): void;
+  onReconnect(id: string): Promise<void>;
 }
 
 function FilePane(props: PaneProps) {
@@ -106,6 +108,9 @@ function FilePane(props: PaneProps) {
   const [newName, setNewName] = useState('');
   const [operationBusy, setOperationBusy] = useState(false);
   const [drop, setDrop] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
+  const anchor = useRef<string | undefined>(undefined);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(500);
   const scrollContainer = useRef<HTMLDivElement>(null);
@@ -120,7 +125,14 @@ function FilePane(props: PaneProps) {
   useEffect(() => {
     if (scrollContainer.current) scrollContainer.current.scrollTop = 0;
     setScrollTop(0);
-  }, [filter, hidden, listing?.location.path, listing?.location.sessionId]);
+  }, [
+    filter,
+    hidden,
+    listing?.location.path,
+    listing?.location.sessionId,
+    sortField,
+    sortDirection,
+  ]);
   const request = useRef(0);
   const current = useRef(location);
   current.current = location;
@@ -129,6 +141,7 @@ function FilePane(props: PaneProps) {
     setBusy(true);
     setError('');
     setSelection([]);
+    anchor.current = undefined;
     try {
       const result = await value(window.cosy.list(next));
       if (token !== request.current) return;
@@ -162,12 +175,19 @@ function FilePane(props: PaneProps) {
       ready: Boolean(listing) && !busy && !error,
     });
   }, [location, listing, selectedNames, onSelection, busy, error]);
-  const entries =
-    listing?.entries.filter(
-      (entry) =>
-        (hidden || !entry.name.startsWith('.')) &&
-        entry.name.toLowerCase().includes(filter.toLowerCase()),
-    ) ?? [];
+  const entries = useMemo(
+    () =>
+      sortEntries(
+        listing?.entries.filter(
+          (entry) =>
+            (hidden || !entry.name.startsWith('.')) &&
+            entry.name.toLowerCase().includes(filter.toLowerCase()),
+        ) ?? [],
+        sortField,
+        sortDirection,
+      ),
+    [listing, hidden, filter, sortField, sortDirection],
+  );
   const selected = listing?.entries.filter((entry) => selectedNames.has(entry.name)) ?? [];
   const firstRow = Math.min(
     Math.max(0, entries.length - 1),
@@ -204,8 +224,14 @@ function FilePane(props: PaneProps) {
       props.onError(error);
     }
   }
-  function toggle(entry: Entry, additive: boolean) {
+  function toggle(entry: Entry, additive: boolean, range = false) {
     props.onActive();
+    if (range && anchor.current) {
+      const names = selectionRange(entries, anchor.current, entry.name);
+      setSelection((previous) => (additive ? [...new Set([...previous, ...names])] : names));
+      return;
+    }
+    anchor.current = entry.name;
     setSelection((previous) =>
       additive
         ? previous.includes(entry.name)
@@ -213,6 +239,15 @@ function FilePane(props: PaneProps) {
           : [...previous, entry.name]
         : [entry.name],
     );
+  }
+  function sort(field: SortField) {
+    anchor.current = undefined;
+    if (field === sortField)
+      setSortDirection((previous) => (previous === 'ascending' ? 'descending' : 'ascending'));
+    else {
+      setSortField(field);
+      setSortDirection(field === 'name' ? 'ascending' : 'descending');
+    }
   }
   return (
     <section
@@ -423,11 +458,23 @@ function FilePane(props: PaneProps) {
                   }
                 />
               </th>
-              <th>
-                Name <ChevronDown size={12} />
-              </th>
-              <th>Size</th>
-              <th>Modified</th>
+              {(['name', 'size', 'modified'] as const).map((field) => (
+                <th key={field} aria-sort={sortField === field ? sortDirection : 'none'}>
+                  <button
+                    className="sort-button"
+                    aria-label={`Sort ${props.side} files by ${field}`}
+                    onClick={() => sort(field)}
+                  >
+                    {field === 'name' ? 'Name' : field === 'size' ? 'Size' : 'Modified'}
+                    {sortField === field && (
+                      <ChevronDown
+                        size={12}
+                        className={sortDirection === 'descending' ? 'sort-descending' : ''}
+                      />
+                    )}
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -442,7 +489,7 @@ function FilePane(props: PaneProps) {
                   key={entry.name}
                   aria-rowindex={firstRow + index + 2}
                   className={selectedNames.has(entry.name) ? 'selected' : ''}
-                  onClick={(event) => toggle(entry, event.ctrlKey || event.metaKey)}
+                  onClick={(event) => toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey)}
                   onDoubleClick={() => void open(entry)}
                   draggable
                   onDragStart={(event) => {
@@ -460,7 +507,9 @@ function FilePane(props: PaneProps) {
                       type="checkbox"
                       aria-label={`Select ${entry.name}`}
                       checked={selectedNames.has(entry.name)}
-                      onChange={() => toggle(entry, true)}
+                      onChange={(event) =>
+                        toggle(entry, true, Boolean((event.nativeEvent as MouseEvent).shiftKey))
+                      }
                     />
                   </td>
                   <td>
@@ -468,7 +517,7 @@ function FilePane(props: PaneProps) {
                       className="file-name"
                       onClick={(event) => {
                         event.stopPropagation();
-                        toggle(entry, event.ctrlKey || event.metaKey);
+                        toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey);
                       }}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -520,6 +569,24 @@ function FilePane(props: PaneProps) {
               <RefreshCw size={14} />
               Try again
             </button>
+            {location.sessionId !== 'local' && (
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await props.onReconnect(location.sessionId);
+                  } catch (error) {
+                    props.onError(error);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Unplug size={14} />
+                Reconnect session
+              </button>
+            )}
           </div>
         )}
         {!busy && !error && !entries.length && (
@@ -1194,9 +1261,21 @@ export default function App() {
   const [notification, setNotification] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showAppearance, setShowAppearance] = useState(false);
+  const [reconnecting, setReconnecting] = useState<string[]>([]);
   const [connectionMenu, setConnectionMenu] = useState<string>();
   const refreshAll = useCallback(() => setRefresh((previous) => previous + 1), []);
   const onError = useCallback((error: unknown) => setNotification(message(error)), []);
+  async function reconnect(id: string) {
+    setReconnecting((previous) => [...previous, id]);
+    try {
+      const session = await value(window.cosy.reconnect(id));
+      setSessions((previous) => previous.map((item) => (item.id === id ? session : item)));
+      refreshAll();
+    } finally {
+      setReconnecting((previous) => previous.filter((item) => item !== id));
+    }
+  }
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('cosy-theme', theme);
@@ -1447,6 +1526,18 @@ export default function App() {
                   <span>{session.label}</span>
                   <button
                     className="icon-button"
+                    title="Reconnect session"
+                    aria-label={`Reconnect ${session.label}`}
+                    disabled={reconnecting.includes(session.id)}
+                    onClick={() => void reconnect(session.id).catch(onError)}
+                  >
+                    <RefreshCw
+                      size={14}
+                      className={reconnecting.includes(session.id) ? 'spin' : ''}
+                    />
+                  </button>
+                  <button
+                    className="icon-button"
                     title="Disconnect session"
                     aria-label={`Disconnect ${session.label}`}
                     onClick={async () => {
@@ -1480,6 +1571,10 @@ export default function App() {
           </div>
           <button onClick={() => setShowHelp(true)}>
             <CircleHelp size={16} />A little help
+          </button>
+          <button onClick={() => setShowAppearance(true)}>
+            <Settings2 size={16} />
+            Appearance
           </button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -1535,6 +1630,7 @@ export default function App() {
         </div>
         <div className="panes">
           <FilePane
+            onReconnect={reconnect}
             side="left"
             home={initial.home}
             sessions={sessions}
@@ -1553,6 +1649,7 @@ export default function App() {
             <span />
           </div>
           <FilePane
+            onReconnect={reconnect}
             side="right"
             home={initial.home}
             sessions={sessions}
@@ -1736,6 +1833,45 @@ export default function App() {
               Preview build: keep backups of important files. Interrupted folder copies keep files
               already completed. No automatic resume, SSH keys, or advanced permission editing yet.
             </p>
+          </div>
+        </Modal>
+      )}
+      {showAppearance && (
+        <Modal title="Appearance" onClose={() => setShowAppearance(false)}>
+          <p className="modal-description">
+            Choose the colours that feel comfortable. Your choice is remembered.
+          </p>
+          <fieldset className="theme-options">
+            <legend>Colour theme</legend>
+            <label>
+              <input
+                type="radio"
+                name="theme"
+                checked={theme === 'light'}
+                onChange={() => setTheme('light')}
+              />
+              <Sun size={18} />
+              <span>
+                Warm light<small>Soft cream backgrounds and darker text.</small>
+              </span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="theme"
+                checked={theme === 'dark'}
+                onChange={() => setTheme('dark')}
+              />
+              <Moon size={18} />
+              <span>
+                Muted dark<small>Dark backgrounds with muted green accents.</small>
+              </span>
+            </label>
+          </fieldset>
+          <div className="modal-actions">
+            <button className="primary" onClick={() => setShowAppearance(false)}>
+              Done
+            </button>
           </div>
         </Modal>
       )}

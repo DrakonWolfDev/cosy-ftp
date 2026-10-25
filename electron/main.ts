@@ -216,6 +216,11 @@ async function start() {
     sessions.disconnect(input);
     log('Session disconnected');
   });
+  handle('cosy:reconnect', id, async (input) => {
+    const result = await sessions.reconnect(input);
+    log(`Reconnected to ${result.label}`);
+    return result;
+  });
   handle('cosy:mkdir', z.object({ location, name }).strict(), (input) =>
     sessions.with(input.location.sessionId, (endpoint) =>
       endpoint.mkdir(endpointPath(endpoint, input.location.path, input.name)),

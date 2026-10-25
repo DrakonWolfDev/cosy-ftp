@@ -6,6 +6,8 @@ Copies stream through the client with bounded buffers. Every file is written bes
 
 The queue is sequential, held in memory, and not automatically resumed after restart. Retry repeats the entire operation. In a partially completed folder copy, already completed files remain; a retry without replacement may encounter those files. Cancelled transfers attempt staging cleanup; a fresh connection is used if necessary. If cleanup still fails, the queue reports the staging path. It can be removed after checking that it is an incomplete transfer. An abrupt process kill or power failure can also leave staging files.
 
+Use **Reconnect session** in a failed remote pane, or the reconnect icon under Open sessions, to restore browsing after a connection drop. This preserves the session ID and pane path, and keeps editor copies bound to the session. It uses the existing session credentials and server trust checks. Active transfers use their own connections; reconnecting the browser does not restart a failed transfer. Use the queue's explicit Retry action after checking any already completed files.
+
 Folder copies preflight unsupported types/conflicts before creating folders, and cap recursion at 100 levels / 100,000 entries. Links and special files are refused, not dereferenced. Parent paths are canonicalised before overlap checks. Delete removes only regular files, links, or empty directories; it never recursively deletes a directory tree.
 
 ## Concurrent changes

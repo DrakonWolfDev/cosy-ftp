@@ -22,6 +22,10 @@ npm run dev
 3. Select items with the checkboxes. Use **Copy** or drag items to the other pane. Remote-to-remote copies pass through this computer.
 4. **Move** uses a same-server/local rename and requires an unused destination name. Delete is permanent; folders must be empty.
 5. Double-click a UTF-8 text file (up to 2 MiB). Changes are saved as local recovery copies. **Save to server** uploads explicitly; a changed original is refused. Reopen working copies from the editor strip after restarting, and reconnect their original saved connection when necessary.
+6. Click **Name**, **Size** or **Modified** to sort either pane. Shift-click selects a range; Ctrl-click adds or removes individual items.
+7. Use **Appearance** in the bottom-left sidebar to choose the colour theme. The quick sun/moon switch is still available, and the choice survives restarting the app.
+
+If a remote browsing session drops, use **Reconnect session** in its pane or the reconnect icon under **Open sessions**. This keeps the session identity and pane location, so open editor working copies stay bound to it. Reconnect reuses that session's credentials; if the password has changed, open a new session with the updated password.
 
 Existing files are protected by default. **Replace existing** requires confirmation. Files are staged and then renamed; servers that refuse replacement are reported without deleting the original. Folder copies are not transactions: completed files remain if a later item fails. Symbolic links and special files are not recursively copied.
 

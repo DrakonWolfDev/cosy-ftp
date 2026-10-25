@@ -1,6 +1,14 @@
 # Implementation progress
 
-Updated 25 October 2026. This is a working **0.1.0 development preview**, not a completed v1. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+Updated 25 October 2026. This is a working **0.2.0 development preview**, not a completed v1. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+
+## 0.2.0 follow-up
+
+- Reconnect existing remote sessions after network loss, preserving session IDs, last directory and editor bindings. Reconnect controls are available in failed panes and under Open sessions. Failed reconnects retain the session for another attempt.
+- Sort either pane by name, size or modification date, in either direction, with folders first and unknown dates last. Shift-click selects ranges in the displayed order; Ctrl-click adjusts individual selections.
+- A labelled Appearance dialog makes the existing light/dark themes easier to find. The quick switch remains, and full-restart automation verifies persistence of warm light.
+- Added real SFTP relay interruption/cancellation tests: originals remain intact, partial copies are not committed, and a fresh connection removes staging files. Desktop automation also drops both browsing connections and reconnects through the actual UI without creating replacement session IDs.
+- FTPS certificate failures now give desktop guidance instead of Node.js command-line suggestions. Certificate verification remains enabled.
 
 ## Milestone status
 
@@ -18,7 +26,7 @@ Updated 25 October 2026. This is a working **0.1.0 development preview**, not a 
 
 ## Verification performed
 
-- **25 service/integration tests pass on Windows and Ubuntu 24.04.** Covers nested/Unicode copies, overwrite protection, permissions, cancellation, dropped streams, staging cleanup, links, self-copy prevention, queue retry/moves, text limits, recovery/conflicts, disk-write failure, credentials and IPC validation.
+- **32 service/integration tests pass on Windows and Ubuntu 24.04.** They cover nested/Unicode copies, overwrite protection, permissions, cancellation, actual network loss, staging cleanup, links, self-copy prevention, queue retry/moves, sorting/ranges, reconnects, text limits, recovery/conflicts, disk-write failure, credentials, certificate guidance and IPC validation.
 - Real loopback servers exercise SFTP, FTP, explicit FTPS, invalid certificates, wrong certificate hostnames and cross-protocol streaming. A separate Python/Paramiko SFTP server validates editing and POSIX replacement.
 - Desktop automation covers browsing, copying, text saves, folders, profiles, themes, uploads, two SFTP sessions, moves, native password encryption or safe fallback, pinned/changed SSH keys, and renderer isolation.
 - A 2,000-entry directory is scrolled, selected and filtered with bounded row rendering. Automated axe WCAG 2 A/AA and 2.1 A/AA checks pass for the editor, themes and selected rows. Manual accessibility testing is still required.
@@ -31,7 +39,7 @@ Screenshots and measurements are generated under `.test-artifacts/` and excluded
 
 ## Footprint and product decision
 
-The Windows unpacked runtime is approximately 364 MiB; preview downloads are around 100–125 MiB. A packaged Windows startup snapshot under automation measured roughly 156 MiB aggregate private memory and 265 MiB summed working sets; the latter can double-count shared pages. Linux headless/WSL figures differ and are not directly comparable. These are preliminary observations, not performance guarantees.
+The initial 0.1.0 Windows unpacked runtime was approximately 364 MiB; preview downloads were around 100–125 MiB. A packaged Windows startup snapshot under automation measured roughly 156 MiB aggregate private memory and 265 MiB summed working sets; the latter can double-count shared pages. Linux headless/WSL figures differ and are not directly comparable. These are preliminary observations, not performance guarantees.
 
 Renderer-only libraries are bundled at build time and excluded from runtime node_modules. Electron remains sizeable: the original lightweight goal is **not yet proven**. Measure settled idle/startup behaviour on target desktops and review Electron against Tauri/Qt before committing to v1.
 

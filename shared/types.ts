@@ -96,6 +96,7 @@ export interface Api {
   deleteProfile(id: string): Promise<Result<void>>;
   connect(input: { profileId: string; password?: string }): Promise<Result<SessionInfo>>;
   disconnect(id: string): Promise<Result<void>>;
+  reconnect(id: string): Promise<Result<SessionInfo>>;
   mkdir(input: { location: Location; name: string }): Promise<Result<void>>;
   rename(input: { location: Location; name: string; newName: string }): Promise<Result<void>>;
   remove(input: { location: Location; names: string[] }): Promise<Result<boolean>>;

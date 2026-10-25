@@ -344,6 +344,71 @@ button.primary:hover:not(:disabled) {
   padding: 3px 8px;
   color: var(--muted);
 }
+.session-list > div > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sort-button {
+  width: 100%;
+  min-height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  font-size: inherit;
+  color: var(--quiet);
+  justify-content: flex-start;
+  gap: 3px;
+}
+th:nth-child(3) .sort-button,
+th:nth-child(4) .sort-button {
+  justify-content: flex-end;
+}
+.sort-button svg {
+  flex-shrink: 0;
+  transform: rotate(180deg);
+}
+.sort-button svg.sort-descending {
+  transform: none;
+}
+.theme-options {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  margin: 18px 0 0;
+  padding: 6px 14px 12px;
+}
+.theme-options legend {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.theme-options label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.theme-options input {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+}
+.theme-options label > svg {
+  color: var(--muted);
+}
+.theme-options small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
 .sidebar-bottom {
   margin-top: auto;
   padding: 20px 4px 0;

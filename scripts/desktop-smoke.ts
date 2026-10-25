@@ -21,6 +21,8 @@ async function main() {
   await fs.mkdir(path.join(source, 'Documents'));
   await fs.writeFile(path.join(source, 'hello.txt'), 'Hello from Cosy FTP\n');
   await fs.writeFile(path.join(source, 'settings.json'), '{\n  "calm": true\n}\n');
+  await fs.writeFile(path.join(source, 'a-small.txt'), 'a');
+  await fs.writeFile(path.join(source, 'z-large.txt'), 'z'.repeat(100));
   const environment: Record<string, string> = Object.fromEntries(
     Object.entries({ ...process.env, COSY_USER_DATA: path.join(fixture, 'user-data') }).filter(
       (entry): entry is [string, string] => typeof entry[1] === 'string',
@@ -109,6 +111,26 @@ async function main() {
     }
     await navigate('left', source);
     await navigate('right', target);
+    const left = page.getByRole('region', { name: 'left file pane', exact: true });
+    await left.getByRole('button', { name: 'Sort left files by size', exact: true }).click();
+    assert.deepEqual(await left.locator('.file-name').allTextContents(), [
+      'Documents',
+      'z-large.txt',
+      'hello.txt',
+      'settings.json',
+      'a-small.txt',
+    ]);
+    await left.getByRole('button', { name: 'z-large.txt', exact: true }).click();
+    await left
+      .getByRole('button', { name: 'settings.json', exact: true })
+      .click({ modifiers: ['Shift'] });
+    await left.getByText(/3 selected/).waitFor();
+    await left
+      .getByRole('button', { name: 'a-small.txt', exact: true })
+      .click({ modifiers: ['Control'] });
+    await left.getByText(/4 selected/).waitFor();
+    await left.getByRole('button', { name: 'Sort left files by name', exact: true }).click();
+    await left.getByRole('button', { name: 'hello.txt', exact: true }).click();
     await page.getByRole('checkbox', { name: 'Select hello.txt', exact: true }).check();
     await page.getByRole('button', { name: 'Copy', exact: true }).click();
     await page.getByText('Complete', { exact: true }).waitFor();
@@ -116,7 +138,6 @@ async function main() {
       await fs.readFile(path.join(target, 'hello.txt'), 'utf8'),
       'Hello from Cosy FTP\n',
     );
-    const left = page.getByRole('region', { name: 'left file pane', exact: true });
     await left.getByRole('button', { name: 'settings.json', exact: true }).dblclick();
     const editor = page.getByRole('textbox', { name: 'Edit settings.json', exact: true });
     await editor.fill('{\n  "calm": true,\n  "tested": true\n}\n');
@@ -133,7 +154,11 @@ async function main() {
     assert.equal((await fs.stat(path.join(source, 'A quiet folder'))).isDirectory(), true);
     await page.screenshot({ path: path.join(root, 'dark.png') });
     await accessibility('Dark workspace');
-    await page.getByRole('button', { name: 'Warm light theme', exact: true }).click();
+    await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+    await page.getByRole('radio', { name: /Warm light/ }).check();
+    await accessibility('Appearance settings');
+    await page.screenshot({ path: path.join(root, 'appearance.png') });
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
     await page.screenshot({ path: path.join(root, 'light.png') });
     await accessibility('Light workspace');
     await page.getByRole('button', { name: 'New connection', exact: true }).click();
@@ -201,6 +226,28 @@ async function main() {
       'Hello from Cosy FTP\n',
     );
     await assert.rejects(fs.stat(path.join(remoteRoot, 'hello.txt')), { code: 'ENOENT' });
+    const beforeReconnect = await page.evaluate(async () => {
+      const result = await window.cosy.initialise();
+      if (!result.ok) throw new Error(result.error);
+      return result.value.sessions.map((item) => item.id).sort();
+    });
+    remote.drop();
+    await right.getByRole('button', { name: 'right refresh', exact: true }).click();
+    await right.getByText('Couldn’t open this location', { exact: true }).waitFor();
+    await right.getByRole('button', { name: 'Reconnect session', exact: true }).click();
+    await right.getByRole('button', { name: 'hello.txt', exact: true }).waitFor();
+    assert.equal(
+      await right.getByRole('textbox', { name: 'right path', exact: true }).inputValue(),
+      '/archive',
+    );
+    await left.getByRole('button', { name: 'Reconnect session', exact: true }).click();
+    await left.getByRole('button', { name: 'archive', exact: true }).waitFor();
+    const afterReconnect = await page.evaluate(async () => {
+      const result = await window.cosy.initialise();
+      if (!result.ok) throw new Error(result.error);
+      return result.value.sessions;
+    });
+    assert.deepEqual(afterReconnect.map((item) => item.id).sort(), beforeReconnect);
     const dialogs = await app.evaluate(
       () => (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs,
     );
@@ -285,13 +332,36 @@ async function main() {
     await left.getByRole('textbox', { name: 'left filter files', exact: true }).fill('entry-00001');
     await left.getByRole('button', { name: 'entry-00001.txt', exact: true }).waitFor();
     assert.equal(await left.locator('.file-name').count(), 1);
+    await page.getByRole('button', { name: 'Warm light theme', exact: true }).click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     assert.deepEqual(errors, []);
     console.log(
-      `Desktop smoke passed: local browsing/copy/edit, folders, profiles, themes, remote upload, two SFTP sessions, same-server move, pinned/changed SSH keys, renderer isolation, and native password-storage ${nativeSecretAvailable ? 'encryption' : 'fallback'}.`,
+      `Desktop smoke passed: local browsing/copy/edit, sorting/range selection, Appearance settings, folders, profiles, remote upload, two SFTP sessions, reconnect after network loss, same-server move, pinned/changed SSH keys, renderer isolation, and native password-storage ${nativeSecretAvailable ? 'encryption' : 'fallback'}.`,
     );
   } finally {
     await app.close();
     await activeRemote.close();
+  }
+  const reopened = await electron.launch({
+    executablePath,
+    args: [
+      ...(packaged ? [] : ['.']),
+      ...(process.env.COSY_TEST_DISABLE_SANDBOX === '1' ? ['--no-sandbox'] : []),
+    ],
+    env: environment,
+    timeout: 30000,
+  });
+  try {
+    const page = await reopened.firstWindow();
+    await page.getByRole('heading', { name: 'Your files. A little more settled.' }).waitFor();
+    assert.equal(
+      await page.evaluate(() => document.documentElement.dataset.theme),
+      'light',
+      'Warm light preference must survive a complete app restart',
+    );
+    console.log('Theme preference survives app restart.');
+  } finally {
+    await reopened.close();
   }
 }
 main().catch((error) => {

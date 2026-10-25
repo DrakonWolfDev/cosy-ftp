@@ -15,6 +15,7 @@ const api: Api = {
   deleteProfile: invoke('cosy:delete-profile'),
   connect: invoke('cosy:connect'),
   disconnect: invoke('cosy:disconnect'),
+  reconnect: invoke('cosy:reconnect'),
   mkdir: invoke('cosy:mkdir'),
   rename: invoke('cosy:rename'),
   remove: invoke('cosy:remove'),

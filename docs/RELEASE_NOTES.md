@@ -1,3 +1,15 @@
+# 0.2.0 — connection recovery and everyday browsing
+
+25 October 2026.
+
+- Reconnect dropped remote browsing sessions without losing their identity, pane location or editor bindings.
+- Sort columns and Shift/Ctrl selection in either file pane.
+- A clearly labelled Appearance dialog, with theme persistence tested across app restarts.
+- Clear FTPS certificate guidance, retaining certificate verification.
+- Real network-interruption and cancellation tests verify original-file protection and staging cleanup.
+
+The release remains an unsigned preview with the limits described below.
+
 # 0.1.0 — development preview
 
 First working Cosy FTP desktop implementation, 25 October 2026.
