@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.npm-cache/
+.electron-cache/
+.test-artifacts/
+.test-tools/
+*.log
+.env*
+!.env.example
