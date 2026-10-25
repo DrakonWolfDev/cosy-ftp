@@ -34,14 +34,14 @@ Updated 25 October 2026. This is a working **0.3.0 development preview**, not a 
 
 ## Verification performed
 
-- The suite now contains **38 service/integration tests**, adding reviewed-conflict recovery, stale-review rejection, offline rescue export, original/link protection and trust-store failure/cancellation coverage. Platform verification for 0.3.0 is recorded when completed below.
+- All **38 service/integration tests** pass on Windows and Ubuntu, including reviewed-conflict recovery, stale-review rejection, offline rescue export, original/link protection and trust-store failure/cancellation coverage. Local distribution builds and packaged desktop checks also pass on both platforms for 0.3.0.
 - Real loopback servers exercise SFTP, FTP, explicit FTPS, invalid certificates, wrong certificate hostnames and cross-protocol streaming. A separate Python/Paramiko SFTP server validates editing and POSIX replacement.
 - Desktop automation covers browsing, copying, text saves, folders, profiles, themes, uploads, two SFTP sessions, moves, native password encryption or safe fallback, pinned/changed SSH keys, and renderer isolation.
 - A 2,000-entry directory is scrolled, selected and filtered with bounded row rendering. Automated axe WCAG 2 A/AA and 2.1 A/AA checks pass for the editor, themes and selected rows. Manual accessibility testing is still required.
 - A 128 MiB binary plus 1,000 small files successfully uploads and relays between two SFTP servers, with the binary verified by SHA-256. Windows harness run: about 47 seconds; peak RSS about 259 MiB including both in-process servers. This is not app idle memory.
 - Application and test-harness type checking, production builds and the dependency audit pass. No known npm vulnerabilities were reported at verification time.
 - A generated build fingerprint checks that packaged tests run the expected build. Bundled dependency notices are included.
-- [Hosted 0.2.0 verification passed on Windows and Ubuntu](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40190427564) for application commit `7db06d6`: all 32 service/integration tests, desktop/accessibility workflows, sorting and range selection, dropped-session reconnection, theme persistence across full restarts, distribution packaging, packaged-executable tests, checksums and artifact uploads. Windows completed in 7m37s; Ubuntu in 3m1s.
+- [Hosted 0.3.0 verification passed on Windows and Ubuntu](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40195790106) for application commit `98e79f0`: all 38 service/integration tests, desktop/accessibility workflows, conflict review, draft rescue and quit protection, SSH trust management, compact layout, dropped-session reconnection, theme persistence across full restarts, distribution packaging, packaged-executable tests, checksums and artifact uploads. Windows completed in 10m31s; Ubuntu in 3m48s.
 
 Screenshots and measurements are generated under `.test-artifacts/` and excluded from Git. Windows artifacts are in `release/`, Linux artifacts in `release/linux/` for this session. These are local outputs, not a published GitHub release.
 
