@@ -25,7 +25,7 @@ Updated 25 October 2026. This is a working **0.1.0 development preview**, not a 
 - A 128 MiB binary plus 1,000 small files successfully uploads and relays between two SFTP servers, with the binary verified by SHA-256. Windows harness run: about 47 seconds; peak RSS about 259 MiB including both in-process servers. This is not app idle memory.
 - Application and test-harness type checking, production builds and the dependency audit pass. No known npm vulnerabilities were reported at verification time.
 - A generated build fingerprint checks that packaged tests run the expected build. Bundled dependency notices are included.
-- GitHub Actions repeats Windows/Linux checks and builds preview artifacts. Local results do not imply a hosted CI run has already passed.
+- [Hosted GitHub Actions verification passed on Windows and Ubuntu](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40187830323) for application commit `c16ec8a`, including service tests, desktop/accessibility workflows, distribution packaging, packaged-executable tests, checksums and artifact uploads. Windows completed in about 9 minutes; Ubuntu in about 4 minutes.
 
 Screenshots and measurements are generated under `.test-artifacts/` and excluded from Git. Windows artifacts are in `release/`, Linux artifacts in `release/linux/` for this session. These are local outputs, not a published GitHub release.
 
