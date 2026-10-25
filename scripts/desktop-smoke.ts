@@ -48,18 +48,32 @@ async function main() {
   });
   const errors: string[] = [];
   try {
-    await app.evaluate(({ dialog }) => {
-      // Native dialogs are intercepted only by the trusted test harness. No
-      // bypass flag exists in the shipped application.
-      (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs = [];
-      dialog.showMessageBox = (async (...args: unknown[]) => {
-        const options = args.at(-1) as { message?: string; detail?: string };
-        (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs.push(
-          `${options.message} ${options.detail}`,
-        );
-        return { response: 1, checkboxChecked: false };
-      }) as typeof dialog.showMessageBox;
-    });
+    await app.evaluate(
+      ({ dialog }, copyPath) => {
+        // Native dialogs are intercepted only by the trusted test harness. No
+        // bypass flag exists in the shipped application.
+        (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs = [];
+        dialog.showMessageBox = (async (...args: unknown[]) => {
+          const options = args.at(-1) as { message?: string; detail?: string };
+          (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs.push(
+            `${options.message} ${options.detail}`,
+          );
+          const cancelForget =
+            (globalThis as unknown as { cosyCancelForget?: boolean }).cosyCancelForget &&
+            options.message?.startsWith('Forget the trusted SSH fingerprint');
+          const cancelQuit =
+            (globalThis as unknown as { cosyCancelRecoveryQuit?: boolean })
+              .cosyCancelRecoveryQuit &&
+            options.message?.startsWith('Recovery copies could not be saved');
+          return { response: cancelForget || cancelQuit ? 0 : 1, checkboxChecked: false };
+        }) as typeof dialog.showMessageBox;
+        dialog.showSaveDialog = (async () => ({
+          canceled: false,
+          filePath: copyPath,
+        })) as typeof dialog.showSaveDialog;
+      },
+      path.join(fixture, 'exported-draft.json'),
+    );
     const page = await app.firstWindow();
     const expectedBuild = JSON.parse(
       await fs.readFile('dist-electron/build-info.json', 'utf8'),
@@ -143,9 +157,100 @@ async function main() {
     await editor.fill('{\n  "calm": true,\n  "tested": true\n}\n');
     await page.getByText('Working copy saved locally', { exact: true }).waitFor();
     await accessibility('Editor');
+    await fs.writeFile(path.join(source, 'settings.json'), '{\n  "external": true\n}\n');
+    await page.getByRole('button', { name: 'Save to disk', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: 'original file changed' }).waitFor();
+    assert.equal(
+      await fs.readFile(path.join(source, 'settings.json'), 'utf8'),
+      '{\n  "external": true\n}\n',
+    );
+    await page.getByRole('button', { name: 'Dismiss message', exact: true }).click();
+    await page.getByRole('button', { name: 'Compare original', exact: true }).click();
+    const originalView = page.getByRole('textbox', {
+      name: 'Current original for settings.json',
+      exact: true,
+    });
+    await originalView.waitFor();
+    assert.match(await originalView.inputValue(), /external/);
+    assert.equal(
+      await page.getByRole('button', { name: 'Keep reviewed draft', exact: true }).isDisabled(),
+      true,
+    );
+    await editor.fill('{\n  "calm": true,\n  "tested": true,\n  "external": true\n}\n');
+    await page.getByText('Working copy saved locally', { exact: true }).waitFor();
+    await accessibility('Conflict comparison');
+    await page.screenshot({ path: path.join(root, 'comparison.png') });
+    await page
+      .getByRole('checkbox', {
+        name: 'I have reviewed the current original and want to keep my draft.',
+        exact: true,
+      })
+      .check();
+    await page.getByRole('button', { name: 'Keep reviewed draft', exact: true }).click();
+    await originalView.waitFor({ state: 'hidden' });
+    assert.equal(
+      await fs.readFile(path.join(source, 'settings.json'), 'utf8'),
+      '{\n  "external": true\n}\n',
+    );
+    await page.getByRole('button', { name: 'Save copy as…', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Copy saved to' }).waitFor();
+    assert.match(await fs.readFile(path.join(fixture, 'exported-draft.json'), 'utf8'), /tested/);
+    const draftState = await page.evaluate(async () => {
+      const state = await window.cosy.initialise();
+      if (!state.ok) throw new Error(state.error);
+      return state.value.documents.find((document) => document.name === 'settings.json');
+    });
+    assert.equal(
+      draftState?.dirty,
+      true,
+      'Saving a separate copy must not mark the original saved',
+    );
     await page.getByRole('button', { name: 'Save to disk', exact: true }).click();
     await page.getByText('Saved to disk', { exact: true }).waitFor();
     assert.match(await fs.readFile(path.join(source, 'settings.json'), 'utf8'), /tested/);
+    const savedOriginal = await fs.readFile(path.join(source, 'settings.json'), 'utf8');
+    const recoveryDirectory = path.join(fixture, 'user-data', 'recovery');
+    await fs.rename(recoveryDirectory, `${recoveryDirectory}-backup`);
+    await fs.writeFile(recoveryDirectory, 'block recovery writes');
+    await editor.fill('latest text that needs rescuing');
+    await page.getByRole('alert').filter({ hasText: 'recovery copy could not be saved' }).waitFor();
+    await page.getByRole('button', { name: 'Dismiss message', exact: true }).click();
+    await app.evaluate(() => {
+      (globalThis as unknown as { cosyCancelRecoveryQuit: boolean }).cosyCancelRecoveryQuit = true;
+    });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
+    const recoveryQuitWarning = await app.evaluate(() =>
+      (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs.some((message) =>
+        message.startsWith('Recovery copies could not be saved'),
+      ),
+    );
+    assert.equal(
+      recoveryQuitWarning,
+      true,
+      'Quit must warn when the latest draft has not reached recovery storage',
+    );
+    assert.equal(
+      page.isClosed(),
+      false,
+      'Cancelling quit must keep the editor and draft available',
+    );
+    await page.getByRole('button', { name: 'Save copy as…', exact: true }).click();
+    await page
+      .getByRole('status')
+      .filter({ hasText: 'Recovery storage still needs attention' })
+      .waitFor();
+    assert.equal(
+      await fs.readFile(path.join(fixture, 'exported-draft.json'), 'utf8'),
+      'latest text that needs rescuing',
+    );
+    assert.equal(await fs.readFile(path.join(source, 'settings.json'), 'utf8'), savedOriginal);
+    await fs.unlink(recoveryDirectory);
+    await fs.rename(`${recoveryDirectory}-backup`, recoveryDirectory);
+    await editor.fill(savedOriginal);
+    await page.getByText('Working copy saved locally', { exact: true }).waitFor();
+    await app.evaluate(() => {
+      (globalThis as unknown as { cosyCancelRecoveryQuit: boolean }).cosyCancelRecoveryQuit = false;
+    });
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await left.getByRole('button', { name: 'New folder', exact: true }).click();
     await page.getByRole('textbox', { name: 'Folder name', exact: true }).fill('A quiet folder');
@@ -256,8 +361,30 @@ async function main() {
       1,
       'The trusted SSH key should be pinned and reused',
     );
-    assert.match(dialogs[0], /SHA256:/);
+    assert.match(
+      dialogs.find((message) => message.includes('Trust the SSH host key'))!,
+      /SHA256:/,
+    );
     await page.screenshot({ path: path.join(root, 'remote.png') });
+    await page.getByRole('button', { name: 'Trusted SSH servers', exact: true }).click();
+    const forget = page.getByRole('button', {
+      name: `Forget trust for localhost:${remote.port}`,
+      exact: true,
+    });
+    await forget.waitFor();
+    assert.equal(await forget.isDisabled(), true);
+    const inUseForget = await page.evaluate(
+      async (host) => window.cosy.forgetHost(host),
+      `localhost:${remote.port}`,
+    );
+    assert.equal(
+      inUseForget.ok,
+      false,
+      'Main process must prevent forgetting trust for an open session',
+    );
+    await accessibility('Trusted SSH servers');
+    await page.screenshot({ path: path.join(root, 'trusted-servers.png') });
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
     // The same hostname/port with a new key must fail without offering first-use
     // trust again. This exercises the real main-process trust store and IPC.
     await remote.close();
@@ -278,6 +405,63 @@ async function main() {
       dialogs.length,
       'A changed host key must not be accepted through another first-use prompt',
     );
+    for (let i = 0; i < 2; i++) {
+      await page
+        .getByRole('button', { name: 'Disconnect Local test server', exact: true })
+        .first()
+        .click();
+      await page.waitForFunction(
+        (remaining) =>
+          document.querySelectorAll('button[aria-label="Disconnect Local test server"]').length ===
+          remaining,
+        1 - i,
+      );
+    }
+    await page.getByRole('button', { name: 'Trusted SSH servers', exact: true }).click();
+    await forget.waitFor();
+    assert.equal(await forget.isEnabled(), true);
+    await app.evaluate(() => {
+      (globalThis as unknown as { cosyCancelForget: boolean }).cosyCancelForget = true;
+    });
+    await forget.click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector<HTMLButtonElement>('button[aria-label^="Forget trust for "]')
+          ?.disabled === false,
+    );
+    const cancelledTrust = await page.evaluate(async () => {
+      const hosts = await window.cosy.trustedHosts();
+      if (!hosts.ok) throw new Error(hosts.error);
+      return hosts.value;
+    });
+    assert.equal(
+      cancelledTrust.length,
+      1,
+      'Cancelling the native confirmation must preserve the trusted fingerprint',
+    );
+    await app.evaluate(() => {
+      (globalThis as unknown as { cosyCancelForget: boolean }).cosyCancelForget = false;
+    });
+    await forget.click();
+    await page.getByText(/No trusted SSH servers yet/).waitFor();
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await page.getByRole('button', { name: /Local test server SFTP/ }).click();
+    await page.getByRole('textbox', { name: 'Password', exact: true }).fill('test-password');
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Connect to Local test server', exact: true })
+      .waitFor({ state: 'hidden' });
+    const trustDialogs = await app.evaluate(() =>
+      (globalThis as unknown as { cosyTestDialogs: string[] }).cosyTestDialogs.filter((message) =>
+        message.includes('Trust the SSH host key'),
+      ),
+    );
+    assert.equal(
+      trustDialogs.length,
+      2,
+      'Explicitly forgetting trust must require a new fingerprint confirmation',
+    );
+    assert.notEqual(trustDialogs[0], trustDialogs[1]);
     const contextIsolation = await app.evaluate(({ BrowserWindow }) => {
       const contents = BrowserWindow.getAllWindows()[0].webContents as unknown as {
         getLastWebPreferences(): Electron.WebPreferences;
@@ -334,9 +518,31 @@ async function main() {
     assert.equal(await left.locator('.file-name').count(), 1);
     await page.getByRole('button', { name: 'Warm light theme', exact: true }).click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(980, 680));
+    await page.waitForFunction(() => window.innerWidth <= 980);
+    const compact = await page.evaluate(() => ({
+      height: window.innerHeight,
+      statusBottom: document.querySelector('.status-bar')!.getBoundingClientRect().bottom,
+      sidebarBottom: document.querySelector('.sidebar-bottom')!.getBoundingClientRect().bottom,
+      scrollHeight: document.documentElement.scrollHeight,
+    }));
+    assert.ok(
+      compact.statusBottom <= compact.height + 1,
+      'The status and queue controls must fit the minimum window height',
+    );
+    assert.ok(
+      compact.sidebarBottom <= compact.height + 1,
+      'Appearance and trust controls must stay in the sidebar viewport',
+    );
+    assert.ok(
+      compact.scrollHeight <= compact.height + 1,
+      'The desktop workspace must not overflow onto a scrolling body',
+    );
+    await accessibility('Compact workspace');
+    await page.screenshot({ path: path.join(root, 'compact.png') });
     assert.deepEqual(errors, []);
     console.log(
-      `Desktop smoke passed: local browsing/copy/edit, sorting/range selection, Appearance settings, folders, profiles, remote upload, two SFTP sessions, reconnect after network loss, same-server move, pinned/changed SSH keys, renderer isolation, and native password-storage ${nativeSecretAvailable ? 'encryption' : 'fallback'}.`,
+      `Desktop smoke passed: browsing/transfers, conflict comparison/review, rescue export and quit protection after recovery failures, sorting/ranges, themes, trusted SSH fingerprint management, compact layout, reconnects, renderer isolation, and native password-storage ${nativeSecretAvailable ? 'encryption' : 'fallback'}.`,
     );
   } finally {
     await app.close();

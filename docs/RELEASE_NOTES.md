@@ -1,3 +1,15 @@
+# 0.3.0 — conflict review and draft rescue
+
+25 October 2026.
+
+- Compare a changed original with your local draft and explicitly review merged text before saving. Stale comparisons are refused and review never uploads automatically.
+- Save a separate local draft copy even when disconnected or recovery writes fail. Export preserves the original binding and unsaved state.
+- Warn before quitting with failed recovery writes, allowing in-memory text to be rescued.
+- View and forget trusted SSH fingerprints through the sidebar, with disconnect and confirmation checks. Changed keys still require verification; FTPS checks stay enabled.
+- Keep sidebar tools and queue controls accessible in compact windows.
+
+The release remains an unsigned preview with the limits described below.
+
 # 0.2.0 — connection recovery and everyday browsing
 
 25 October 2026.

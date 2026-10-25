@@ -27,6 +27,10 @@ npm run dev
 
 If a remote browsing session drops, use **Reconnect session** in its pane or the reconnect icon under **Open sessions**. This keeps the session identity and pane location, so open editor working copies stay bound to it. Reconnect reuses that session's credentials; if the password has changed, open a new session with the updated password.
 
+If an original changes while you are editing, choose **Compare original** in the editor. Review the fresh original beside your draft, merge the text you want to keep, then acknowledge the review and choose **Keep reviewed draft**. This records your decision locally; **Save to server/disk** is still a separate action and checks the original again. **Save copy as…** exports your current draft to a separate local file, including when the remote session or recovery storage is unavailable.
+
+Use **Trusted SSH servers** in the sidebar to view saved SFTP fingerprints. After independently verifying a legitimate key change, disconnect that server's sessions, forget its old fingerprint and verify the new fingerprint when connecting again. FTPS certificate checks are separate.
+
 Existing files are protected by default. **Replace existing** requires confirmation. Files are staged and then renamed; servers that refuse replacement are reported without deleting the original. Folder copies are not transactions: completed files remain if a later item fails. Symbolic links and special files are not recursively copied.
 
 ## Check and package

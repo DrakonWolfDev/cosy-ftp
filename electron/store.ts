@@ -49,7 +49,12 @@ export class SettingsStore {
         data.version !== 1 ||
         !Array.isArray(data.profiles) ||
         !data.hosts ||
-        typeof data.hosts !== 'object'
+        typeof data.hosts !== 'object' ||
+        Array.isArray(data.hosts) ||
+        Object.entries(data.hosts).some(
+          ([host, fingerprint]) =>
+            !host || /[\0\r\n]/.test(host) || typeof fingerprint !== 'string',
+        )
       )
         throw new Error('Unsupported settings format');
       for (const item of data.profiles) {
@@ -136,7 +141,15 @@ export class SettingsStore {
     });
   }
   hostKey(key: string) {
-    return this.data.hosts[key];
+    return Object.hasOwn(this.data.hosts, key) ? this.data.hosts[key] : undefined;
+  }
+  trustedHosts() {
+    return Object.entries(this.data.hosts).map(([host, fingerprint]) => ({ host, fingerprint }));
+  }
+  forgetHost(host: string) {
+    return this.mutate(async () => {
+      delete this.data.hosts[host];
+    });
   }
   trustHost(key: string, fingerprint: string) {
     return this.mutate(async () => {

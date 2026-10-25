@@ -10,13 +10,14 @@ import { Sessions } from './sessions';
 import { TransferQueue } from './transfers';
 import { EditorService } from './editor';
 import { endpointPath, exists } from './endpoints';
-import { draft, errorMessage, id, job, location, name, profile } from './validation';
+import { draft, errorMessage, id, job, location, name, profile, text } from './validation';
 
 let window: BrowserWindow;
 let queue: TransferQueue;
 let sessions: Sessions;
 let editor: EditorService;
 let quitting = false;
+let closing = false;
 const logs: LogEntry[] = [];
 const indexFile = path.resolve(__dirname, '../../dist/index.html');
 const indexUrl = pathToFileURL(indexFile).href;
@@ -144,24 +145,32 @@ async function start() {
   window.on('close', (event) => {
     if (quitting) return;
     event.preventDefault();
+    if (closing) return;
+    closing = true;
     void (async () => {
-      if (queue.active()) {
-        const response = await dialog.showMessageBox(window, {
-          type: 'warning',
-          message: 'Quit and stop active transfers?',
-          detail:
-            'Completed files remain. Incomplete staging files may need cleanup. Editor recovery copies remain on this computer.',
-          buttons: ['Keep working', 'Quit'],
-          defaultId: 0,
-          cancelId: 0,
-        });
-        if (response.response !== 1) return;
+      try {
+        await editor.flush();
+        const recoveryFailed = editor.hasUnpersistedChanges();
+        if (queue.active() || recoveryFailed) {
+          const response = await dialog.showMessageBox(window, {
+            type: 'warning',
+            message: recoveryFailed
+              ? 'Recovery copies could not be saved. Quit anyway?'
+              : 'Quit and stop active transfers?',
+            detail: `${queue.active() ? 'Completed files remain. Incomplete staging files may need cleanup. ' : ''}${recoveryFailed ? 'Some latest editor changes may not be restored next time. Keep working and use Save copy as… to rescue your text before quitting.' : 'Editor recovery copies remain on this computer.'}`,
+            buttons: ['Keep working', 'Quit'],
+            defaultId: 0,
+            cancelId: 0,
+          });
+          if (response.response !== 1) return;
+        }
+        quitting = true;
+        queue.shutdown();
+        sessions.close();
+        window.close();
+      } finally {
+        closing = false;
       }
-      await editor.flush();
-      quitting = true;
-      queue.shutdown();
-      sessions.close();
-      window.close();
     })();
   });
 
@@ -221,6 +230,41 @@ async function start() {
     log(`Reconnected to ${result.label}`);
     return result;
   });
+  const connectedHost = (host: string) =>
+    sessions.list().some((info) => {
+      const profile = sessions.profile(info.id);
+      return (
+        profile?.protocol === 'sftp' && `${profile.host.toLowerCase()}:${profile.port}` === host
+      );
+    });
+  handle('cosy:trusted-hosts', z.undefined(), () =>
+    settings.trustedHosts().map((host) => ({ ...host, connected: connectedHost(host.host) })),
+  );
+  handle('cosy:forget-host', text.min(1).max(300), async (host) => {
+    if (connectedHost(host))
+      throw new Error(
+        'Disconnect this server’s open sessions before forgetting its SSH fingerprint.',
+      );
+    if (settings.hostKey(host) === undefined) return true;
+    const result = await dialog.showMessageBox(window, {
+      type: 'warning',
+      message: `Forget the trusted SSH fingerprint for ${host}?`,
+      detail:
+        'The next connection will ask you to verify the server again. Compare its fingerprint through a trusted channel before accepting it.',
+      buttons: ['Cancel', 'Forget fingerprint'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    if (result.response !== 1) return false;
+    if (connectedHost(host))
+      throw new Error(
+        'A session connected while this dialog was open. Disconnect it before forgetting this fingerprint.',
+      );
+    await settings.forgetHost(host);
+    log(`Forgot SSH fingerprint for ${host}`);
+    return true;
+  });
   handle('cosy:mkdir', z.object({ location, name }).strict(), (input) =>
     sessions.with(input.location.sessionId, (endpoint) =>
       endpoint.mkdir(endpointPath(endpoint, input.location.path, input.name)),
@@ -278,6 +322,32 @@ async function start() {
   handle('cosy:open-editor', location, (input) => editor.open(input));
   handle('cosy:save-draft', draft, (input) => editor.draft(input.id, input.content));
   handle('cosy:upload-edit', id, (input) => editor.upload(input));
+  handle('cosy:compare-edit', id, (input) => editor.compare(input));
+  handle(
+    'cosy:review-edit',
+    z.object({ id, revision: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+    (input) => editor.review(input.id, input.revision),
+  );
+  handle('cosy:export-edit', id, async (input) => {
+    const document = editor.document(input);
+    const safeName = Array.from(document.name.replace(/[<>:"/\\|?*\0]/g, '_'))
+      .slice(0, 100)
+      .join('');
+    const result = await dialog.showSaveDialog(window, {
+      title: 'Save a copy of this draft',
+      defaultPath: path.join(app.getPath('documents'), `cosy-draft-${safeName}`),
+      properties: ['createDirectory', 'showOverwriteConfirmation'],
+    });
+    if (result.canceled || !result.filePath) return null;
+    let replace = false;
+    try {
+      await fs.lstat(result.filePath);
+      replace = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    return editor.exportCopy(input, result.filePath, replace);
+  });
   handle('cosy:rebind-edit', z.object({ id, sessionId: id }).strict(), (input) =>
     editor.rebind(input.id, input.sessionId),
   );

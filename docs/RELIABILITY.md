@@ -24,6 +24,12 @@ Working copies and their original content hashes are persisted under the applica
 
 After restart, open the editor strip. For remote drafts, reconnect the same saved connection and choose **Use reconnected session** before saving. The server identity and original content are checked again. Changed connection details cannot silently redirect an old draft to another server. Recovery files contain your text in plaintext under your own OS account, like a normal editor recovery folder; they are not encrypted. Close/discard a working copy to remove it.
 
+When a conflict is reported, **Compare original** reads the latest original and displays it beside your editable local draft. Merge changes manually, acknowledge the review, then choose **Keep reviewed draft**. The app reads the original again before accepting that review and refuses stale comparisons. Review updates only the local working copy's comparison baseline; it never uploads. Save remains explicit and repeats the normal checks, including the protocol race limitations above.
+
+**Save copy as…** exports the latest draft to a local file chosen through the native save dialog. It is available without a remote connection and can rescue text when recovery writes have failed. Export does not clear the original's unsaved state or redirect its future saves. Export refuses the local original itself, hard-link and directory aliases to that same file, and symbolic-link destinations. Existing regular copy files can be replaced through the native save dialog's overwrite confirmation.
+
+If recovery storage cannot accept the latest changes, the app warns before quitting. Choose **Keep working** and export a copy or repair the storage problem. Normally persisted drafts do not cause a quit warning. Force-killing the process or losing power can still lose changes that never reached recovery storage; an exported copy is separate from automatic recovery.
+
 ## FTPS certificate errors
 
 An unverified certificate error happens before password authentication. Check the server certificate's validity dates, hostname and full certificate chain with the server administrator. A self-signed certificate or missing intermediate can cause an "unable to verify the first certificate" error; changing the account password does not correct certificate trust. The desktop app now gives certificate-specific guidance instead of exposing Node.js command-line suggestions. Certificate verification stays enabled.
@@ -32,7 +38,7 @@ An unverified certificate error happens before password authentication. Check th
 
 Profiles and SSH fingerprints live in `connections.json` under the Electron user-data directory (`%APPDATA%/cosy-ftp` on Windows, usually `~/.config/cosy-ftp` on Linux). Passwords are remembered only on request and encrypted using Electron's asynchronous OS-backed safeStorage. Insecure Linux `basic_text` storage is refused. If secure storage is unavailable, use session-only passwords. Different Linux keyring/desktop configurations still require field testing.
 
-SSH first-use trust requires a native confirmation with the SHA-256 fingerprint; subsequent mismatches are refused. If an administrator legitimately rotates a host key, verify it independently before modifying the matching entry in the settings file while the app is closed. A dedicated trust-management UI is future work. FTPS uses normal TLS certificate/hostname verification, with no certificate bypass option. Plain FTP visibly warns that passwords and files are unencrypted.
+SSH first-use trust requires a native confirmation with the SHA-256 fingerprint; subsequent mismatches are refused. **Trusted SSH servers** lists those fingerprints. If an administrator legitimately rotates a key, verify the replacement independently, disconnect the server's open sessions, then use **Forget trust** and confirm the removal. The next connection requires a new fingerprint confirmation. Forgetting a key preserves saved profiles and encrypted credentials; cancelling the confirmation preserves the fingerprint. FTPS uses normal TLS certificate/hostname verification separately, with no certificate bypass option. Plain FTP visibly warns that passwords and files are unencrypted.
 
 ## Release validation still required
 

@@ -384,10 +384,12 @@ test('failed recovery writes retain the latest draft in memory and keep close pr
     );
     assert.equal(editor.list()[0].content, 'latest unsaved text');
     assert.equal(editor.dirty(document.id), true);
+    assert.equal(editor.hasUnpersistedChanges(), true);
     assert.equal(await fs.readFile(file, 'utf8'), 'original');
     await fs.unlink(recovery);
     await fs.rename(backup, recovery);
     await editor.draft(document.id, 'latest unsaved text');
+    assert.equal(editor.hasUnpersistedChanges(), false);
     const recovered = new EditorService(recovery, sessions);
     await recovered.load();
     assert.equal(recovered.list()[0].content, 'latest unsaved text');

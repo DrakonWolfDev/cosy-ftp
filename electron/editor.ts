@@ -2,9 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'node:stream';
-import type { EditDocument, Location } from '../shared/types';
+import type { EditComparison, EditDocument, Location } from '../shared/types';
 import type { Endpoint } from './endpoints';
-import { endpointPath } from './endpoints';
+import { endpointPath, LocalEndpoint, exists } from './endpoints';
 import type { Sessions } from './sessions';
 import { atomicJson } from './store';
 import { errorMessage } from './validation';
@@ -49,6 +49,7 @@ async function readText(endpoint: Endpoint, file: string) {
 export class EditorService {
   private documents = new Map<string, StoredDocument>();
   private pending: Promise<unknown> = Promise.resolve();
+  private unpersisted = new Set<string>();
   constructor(
     private directory: string,
     private sessions: Sessions,
@@ -87,13 +88,17 @@ export class EditorService {
   list() {
     return [...this.documents.values()].map((document) => this.publicDocument(document));
   }
+  document(id: string) {
+    return this.publicDocument(this.get(id));
+  }
   private get(id: string) {
     const document = this.documents.get(id);
     if (!document) throw new Error('This working copy is no longer open');
     return document;
   }
-  private persist(document: StoredDocument) {
-    return atomicJson(path.join(this.directory, `${document.id}.json`), document);
+  private async persist(document: StoredDocument) {
+    await atomicJson(path.join(this.directory, `${document.id}.json`), document);
+    this.unpersisted.delete(document.id);
   }
   open(location: Location) {
     return this.serial(async () => {
@@ -144,13 +149,117 @@ export class EditorService {
       // confirmation must still know this is a dirty draft after a failed write.
       try {
         await this.persist(next);
+        this.unpersisted.delete(id);
       } catch {
+        this.unpersisted.add(id);
         next.status = 'Recovery write failed — keep the editor open';
         throw new Error(
           'The recovery copy could not be saved. Your latest text is still in the open editor. Check disk space and save again.',
         );
       }
       return this.publicDocument(next);
+    });
+  }
+  compare(id: string): Promise<EditComparison> {
+    return this.serial(async () => {
+      const document = this.get(id);
+      const endpoint = await this.sessions.independent(document.location.sessionId);
+      try {
+        if (endpoint.identity !== document.identity)
+          throw new Error('The connected server does not match this working copy');
+        const current = await readText(endpoint, document.location.path);
+        return {
+          documentId: id,
+          content: current.content,
+          revision: current.baseline,
+          changed: current.baseline !== document.baseline,
+        };
+      } finally {
+        endpoint.close();
+      }
+    });
+  }
+  review(id: string, revision: string) {
+    return this.serial(async () => {
+      const document = this.get(id);
+      const endpoint = await this.sessions.independent(document.location.sessionId);
+      try {
+        if (endpoint.identity !== document.identity)
+          throw new Error('The connected server does not match this working copy');
+        const current = await readText(endpoint, document.location.path);
+        if (current.baseline !== revision)
+          throw new Error(
+            'The original changed again. Refresh the comparison and review the latest version. Your draft has been kept.',
+          );
+        const next: StoredDocument = {
+          ...document,
+          baseline: revision,
+          dirty: digest(Buffer.from(document.content, 'utf8')) !== revision,
+          status: 'Original reviewed — draft remains local',
+          updatedAt: Date.now(),
+        };
+        await this.persist(next);
+        this.documents.set(id, next);
+        this.unpersisted.delete(id);
+        return this.publicDocument(next);
+      } finally {
+        endpoint.close();
+      }
+    });
+  }
+  exportCopy(id: string, file: string, replace = false) {
+    return this.serial(async () => {
+      const document = this.get(id);
+      if (!path.isAbsolute(file)) throw new Error('Choose an absolute local file path');
+      const endpoint = new LocalEndpoint();
+      const destination = path.join(await fs.realpath(path.dirname(file)), path.basename(file));
+      if (!document.profileId) {
+        const original = await fs
+          .realpath(document.location.path)
+          .catch(() => path.resolve(document.location.path));
+        const [originalInfo, destinationInfo] = await Promise.all([
+          fs.stat(original, { bigint: true }).catch(() => undefined),
+          fs.lstat(destination, { bigint: true }).catch(() => undefined),
+        ]);
+        const sameFile =
+          originalInfo &&
+          destinationInfo &&
+          originalInfo.ino !== 0n &&
+          originalInfo.ino === destinationInfo.ino &&
+          originalInfo.dev === destinationInfo.dev;
+        const same =
+          process.platform === 'win32'
+            ? original.toLowerCase() === destination.toLowerCase()
+            : original === destination;
+        if (same || sameFile)
+          throw new Error(
+            'Save copy as must use a separate file. Use Save to disk to update the original with conflict checks.',
+          );
+      }
+      const existing = await exists(endpoint, destination);
+      let mode: number | undefined;
+      if (existing) {
+        const previous = await endpoint.stat(destination);
+        if (previous.kind !== 'file')
+          throw new Error('A draft copy cannot replace a symbolic link, folder or special file');
+        if (!replace) throw new Error('Destination already exists');
+        mode = previous.mode;
+      }
+      const temporary = path.join(path.dirname(destination), `.cosy-draft-${randomUUID()}.part`);
+      try {
+        const handle = await fs.open(temporary, 'wx', 0o600);
+        try {
+          await handle.writeFile(document.content, 'utf8');
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        if (mode !== undefined) await endpoint.setMode(temporary, mode);
+        await endpoint.rename(temporary, destination, replace);
+        return destination;
+      } finally {
+        await fs.rm(temporary, { force: true }).catch(() => {});
+      }
     });
   }
   upload(id: string) {
@@ -191,6 +300,7 @@ export class EditorService {
           updatedAt: Date.now(),
         };
         this.documents.set(id, next);
+        this.unpersisted.delete(id);
         try {
           await this.persist(next);
         } catch {
@@ -253,12 +363,20 @@ export class EditorService {
       this.get(id);
       await fs.unlink(path.join(this.directory, `${id}.json`));
       this.documents.delete(id);
+      this.unpersisted.delete(id);
     });
   }
   dirty(id: string) {
     return this.get(id).dirty;
   }
   async flush() {
-    await this.pending;
+    for (;;) {
+      const pending = this.pending;
+      await pending;
+      if (pending === this.pending) return;
+    }
+  }
+  hasUnpersistedChanges() {
+    return this.unpersisted.size > 0;
   }
 }

@@ -71,6 +71,17 @@ export interface EditDocument {
   updatedAt: number;
   profileId?: string;
 }
+export interface EditComparison {
+  documentId: string;
+  content: string;
+  revision: string;
+  changed: boolean;
+}
+export interface TrustedHost {
+  host: string;
+  fingerprint: string;
+  connected: boolean;
+}
 export interface LogEntry {
   time: number;
   level: 'info' | 'error';
@@ -97,6 +108,8 @@ export interface Api {
   connect(input: { profileId: string; password?: string }): Promise<Result<SessionInfo>>;
   disconnect(id: string): Promise<Result<void>>;
   reconnect(id: string): Promise<Result<SessionInfo>>;
+  trustedHosts(): Promise<Result<TrustedHost[]>>;
+  forgetHost(host: string): Promise<Result<boolean>>;
   mkdir(input: { location: Location; name: string }): Promise<Result<void>>;
   rename(input: { location: Location; name: string; newName: string }): Promise<Result<void>>;
   remove(input: { location: Location; names: string[] }): Promise<Result<boolean>>;
@@ -107,6 +120,9 @@ export interface Api {
   openEditor(location: Location): Promise<Result<EditDocument>>;
   saveDraft(input: { id: string; content: string }): Promise<Result<EditDocument>>;
   uploadEdit(id: string): Promise<Result<EditDocument>>;
+  compareEdit(id: string): Promise<Result<EditComparison>>;
+  reviewEdit(input: { id: string; revision: string }): Promise<Result<EditDocument>>;
+  exportEdit(id: string): Promise<Result<string | null>>;
   rebindEdit(input: { id: string; sessionId: string }): Promise<Result<EditDocument>>;
   closeEdit(id: string): Promise<Result<boolean>>;
   onJobs(callback: (jobs: TransferJob[]) => void): () => void;

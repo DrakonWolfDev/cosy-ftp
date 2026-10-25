@@ -62,6 +62,14 @@ test(
       assert.equal(await fs.readFile(file, 'utf8'), 'changed elsewhere');
       assert.equal(recovered.list()[0].content, 'recovered draft');
       assert.deepEqual(await fs.readdir(root), ['config.txt']);
+      const compared = await recovered.compare(document.id);
+      assert.equal(compared.changed, true);
+      assert.equal(compared.content, 'changed elsewhere');
+      await recovered.draft(document.id, 'merged remote draft');
+      await recovered.review(document.id, compared.revision);
+      assert.equal(await fs.readFile(file, 'utf8'), 'changed elsewhere');
+      assert.equal((await recovered.upload(document.id)).status, 'Saved to server');
+      assert.equal(await fs.readFile(file, 'utf8'), 'merged remote draft');
     } finally {
       sessions.close();
       await server.close();

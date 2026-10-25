@@ -26,6 +26,8 @@ A calm desktop file manager for Windows 11 x64 and mainstream Linux x64 distribu
 
 Built-in plain text editor for UTF-8 files up to 2 MiB, explicit save to server, durable local recovery copies, and content-based conflict detection. Binary/non-UTF-8 files are refused. No automatic upload, executable preview, or rendering of remote HTML. Syntax highlighting and external editors are later improvements.
 
+Comparison presents a fresh original beside the editable draft. Explicit review can update the draft's comparison baseline only if that original is still current; review never uploads. A subsequent save performs normal conflict checks again. Draft export writes a separate local copy without marking the original saved. Failed recovery writes trigger a quit warning while the latest text exists only in memory.
+
 ## Release exclusions
 
 Direct server-to-server transfer, FTP active mode, implicit FTPS, SSH agents/keys/jump hosts, permission editing, synchronisation, scheduled transfers, automatic update service, large-file editor, and transactional directory transfers. Signing and distribution validation remain release gates, not implied by a local build.

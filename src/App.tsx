@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import type {
   EditDocument,
+  EditComparison,
   Entry,
   InitialState,
   Listing,
@@ -48,6 +49,7 @@ import type {
   Result,
   SessionInfo,
   TransferJob,
+  TrustedHost,
 } from '../shared/types';
 
 async function value<T>(promise: Promise<Result<T>>): Promise<T> {
@@ -959,7 +961,7 @@ function Queue({
         </button>
       </header>
       {expanded && (
-        <div className="queue-content">
+        <div className="queue-content" tabIndex={0} role="group" aria-label="Transfer items">
           {!jobs.length ? (
             <div className="queue-empty">
               <div>
@@ -1079,6 +1081,9 @@ function Editor({
   const selected = documents.find((document) => document.id === selectedId) ?? documents[0];
   const [busy, setBusy] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [comparison, setComparison] = useState<EditComparison>();
+  const [reviewed, setReviewed] = useState(false);
+  const [notice, setNotice] = useState('');
   const revisions = useRef(new Map<string, number>());
   const pending = useRef<Promise<unknown>>(Promise.resolve());
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -1086,6 +1091,75 @@ function Editor({
     selected.profileId ? session.profileId === selected.profileId : session.id === 'local',
   );
   const connected = sessions.some((session) => session.id === selected.location.sessionId);
+  const currentComparison = comparison?.documentId === selected.id ? comparison : undefined;
+  useEffect(() => {
+    setComparison(undefined);
+    setReviewed(false);
+    setNotice('');
+  }, [selected.id]);
+  async function compare() {
+    setBusy(true);
+    setNotice('');
+    setReviewed(false);
+    try {
+      await pending.current.catch(() => {});
+      onDocument(
+        await value(window.cosy.saveDraft({ id: selected.id, content: selected.content })),
+      );
+      setComparison(await value(window.cosy.compareEdit(selected.id)));
+    } catch (error) {
+      onError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function keepReviewedDraft() {
+    if (!currentComparison || !reviewed) return;
+    setBusy(true);
+    try {
+      await pending.current.catch(() => {});
+      onDocument(
+        await value(window.cosy.saveDraft({ id: selected.id, content: selected.content })),
+      );
+      onDocument(
+        await value(
+          window.cosy.reviewEdit({ id: selected.id, revision: currentComparison.revision }),
+        ),
+      );
+      setComparison(undefined);
+      setReviewed(false);
+      setNotice(
+        'Review recorded. Your draft is still local; use Save to server or Save to disk when ready.',
+      );
+    } catch (error) {
+      onError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function exportCopy() {
+    setBusy(true);
+    setNotice('');
+    try {
+      await pending.current.catch(() => {});
+      // Export must remain available if recovery storage is full: draft() keeps
+      // the latest valid text in main-process memory even when persistence fails.
+      const draftResult = await window.cosy.saveDraft({
+        id: selected.id,
+        content: selected.content,
+      });
+      if (draftResult.ok) onDocument(draftResult.value);
+      const file = await value(window.cosy.exportEdit(selected.id));
+      if (file)
+        setNotice(
+          `Copy saved to ${file}. The original and its unsaved status are unchanged.${draftResult.ok ? '' : ' Recovery storage still needs attention.'}`,
+        );
+    } catch (error) {
+      onError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function save() {
     setBusy(true);
     try {
@@ -1111,6 +1185,7 @@ function Editor({
           >
             <button
               aria-pressed={selected.id === document.id}
+              disabled={busy}
               onClick={() => onSelect(document.id)}
             >
               <FileCode2 size={14} />
@@ -1120,6 +1195,7 @@ function Editor({
             <button
               className="icon-button"
               aria-label={`Close ${document.name}`}
+              disabled={busy}
               onClick={() => onClose(document.id)}
             >
               <X size={13} />
@@ -1128,32 +1204,107 @@ function Editor({
         ))}
       </div>
       <div className="editor-path">{selected.location.path}</div>
-      <textarea
-        ref={textarea}
-        className="editor-text"
-        aria-label={`Edit ${selected.name}`}
-        spellCheck={false}
-        value={selected.content}
-        disabled={busy}
-        onKeyDown={(event) => {
-          if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-            event.preventDefault();
-            if (connected && !busy) void save();
-          }
-          if (event.key === 'Tab') {
-            event.preventDefault();
-            const element = event.currentTarget;
-            const start = element.selectionStart;
-            const end = element.selectionEnd;
-            const content = `${selected.content.slice(0, start)}  ${selected.content.slice(end)}`;
-            change(content);
-            requestAnimationFrame(() => {
-              element.selectionStart = element.selectionEnd = start + 2;
-            });
-          }
-        }}
-        onChange={(event) => change(event.target.value)}
-      />
+      <div className="editor-tools">
+        <button disabled={!connected || busy || savingDraft} onClick={() => void compare()}>
+          <Copy size={14} />
+          {currentComparison ? 'Refresh comparison' : 'Compare original'}
+        </button>
+        <button disabled={busy || savingDraft} onClick={() => void exportCopy()}>
+          <ArrowDown size={14} />
+          Save copy as…
+        </button>
+        {currentComparison && (
+          <button
+            disabled={busy}
+            onClick={() => {
+              setComparison(undefined);
+              setReviewed(false);
+            }}
+          >
+            Close comparison
+          </button>
+        )}
+      </div>
+      <div className={currentComparison ? 'editor-columns' : ''}>
+        {currentComparison && (
+          <label className="editor-column">
+            <span>Current original · read only</span>
+            <textarea
+              className="editor-text"
+              aria-label={`Current original for ${selected.name}`}
+              value={currentComparison.content}
+              readOnly
+              spellCheck={false}
+            />
+          </label>
+        )}
+        <div className="editor-column">
+          {currentComparison && <span>Your local draft · edit to merge changes</span>}
+          <textarea
+            ref={textarea}
+            className="editor-text"
+            aria-label={`Edit ${selected.name}`}
+            spellCheck={false}
+            value={selected.content}
+            disabled={busy}
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                if (connected && !busy && !savingDraft && !currentComparison?.changed) void save();
+              }
+              if (event.key === 'Tab') {
+                event.preventDefault();
+                const element = event.currentTarget;
+                const start = element.selectionStart;
+                const end = element.selectionEnd;
+                const content = `${selected.content.slice(0, start)}  ${selected.content.slice(end)}`;
+                change(content);
+                requestAnimationFrame(() => {
+                  element.selectionStart = element.selectionEnd = start + 2;
+                });
+              }
+            }}
+            onChange={(event) => change(event.target.value)}
+          />
+        </div>
+      </div>
+      {currentComparison && (
+        <div className="comparison-review">
+          {currentComparison.changed ? (
+            <>
+              <p>
+                The original changed after this working copy was loaded. Compare both versions and
+                edit your local draft to keep the changes you need.
+              </p>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={reviewed}
+                  disabled={busy || savingDraft}
+                  onChange={(event) => setReviewed(event.target.checked)}
+                />
+                I have reviewed the current original and want to keep my draft.
+              </label>
+              <button
+                disabled={!reviewed || busy || savingDraft}
+                onClick={() => void keepReviewedDraft()}
+              >
+                Keep reviewed draft
+              </button>
+            </>
+          ) : (
+            <p>
+              The original matches the version this working copy is based on. Saving will still
+              check it again.
+            </p>
+          )}
+        </div>
+      )}
+      {notice && (
+        <p className="editor-notice" role="status">
+          {notice}
+        </p>
+      )}
       <div className="editor-footer">
         <span className="editor-status" aria-live="polite">
           {savingDraft ? (
@@ -1193,11 +1344,11 @@ function Editor({
             : 'Edits stay on this computer until you save to the original.'}
         </p>
         <button
-          disabled={!connected || busy || savingDraft}
+          disabled={!connected || busy || savingDraft || Boolean(currentComparison?.changed)}
           className="primary"
           onClick={() => void save()}
         >
-          {busy ? 'Saving…' : selected.profileId ? 'Save to server' : 'Save to disk'}
+          {busy ? 'Working…' : selected.profileId ? 'Save to server' : 'Save to disk'}
         </button>
       </div>
     </Modal>
@@ -1208,6 +1359,7 @@ function Editor({
       return;
     }
     const id = selected.id;
+    setNotice('');
     const revision = (revisions.current.get(id) ?? 0) + 1;
     revisions.current.set(id, revision);
     onDocument({ ...selected, content, dirty: true, status: 'Saving recovery copy…' });
@@ -1236,6 +1388,92 @@ function Editor({
   }
 }
 
+function TrustedServers({ onClose }: { onClose(): void }) {
+  const [hosts, setHosts] = useState<TrustedHost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function refresh() {
+    setLoading(true);
+    setError('');
+    try {
+      setHosts(await value(window.cosy.trustedHosts()));
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void refresh();
+  }, []);
+  return (
+    <Modal title="Trusted SSH servers" wide onClose={() => !busy && onClose()}>
+      <p className="modal-description">
+        These fingerprints identify SFTP servers you have explicitly trusted. If an administrator
+        replaces a server key, verify the new fingerprint through a trusted channel before accepting
+        it.
+      </p>
+      <button disabled={loading || busy} onClick={() => void refresh()}>
+        <RefreshCw size={14} />
+        Refresh trusted servers
+      </button>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      {loading ? (
+        <p role="status" className="form-hint">
+          Loading trusted servers…
+        </p>
+      ) : hosts.length ? (
+        <ul className="trusted-hosts">
+          {hosts.map((host) => (
+            <li key={host.host}>
+              <div>
+                <strong>{host.host}</strong>
+                <code>{host.fingerprint}</code>
+                <small>
+                  {host.connected
+                    ? 'Disconnect this server’s open sessions before forgetting its fingerprint.'
+                    : 'No open sessions for this server.'}
+                </small>
+              </div>
+              <button
+                disabled={busy || host.connected}
+                aria-label={`Forget trust for ${host.host}`}
+                onClick={async () => {
+                  setBusy(true);
+                  setError('');
+                  try {
+                    if (await value(window.cosy.forgetHost(host.host))) await refresh();
+                  } catch (error) {
+                    setError(message(error));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Trash2 size={14} />
+                Forget trust
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="form-hint">
+          No trusted SSH servers yet. SFTP connections ask you to verify a server fingerprint on
+          first use.
+        </p>
+      )}
+      <p className="form-hint">
+        FTPS uses certificate validation separately; this list does not override FTPS certificates.
+      </p>
+    </Modal>
+  );
+}
+
 export default function App() {
   const [initial, setInitial] = useState<InitialState>();
   const [fatal, setFatal] = useState('');
@@ -1262,6 +1500,7 @@ export default function App() {
   const [showLogs, setShowLogs] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
+  const [showTrustedServers, setShowTrustedServers] = useState(false);
   const [reconnecting, setReconnecting] = useState<string[]>([]);
   const [connectionMenu, setConnectionMenu] = useState<string>();
   const refreshAll = useCallback(() => setRefresh((previous) => previous + 1), []);
@@ -1417,146 +1656,148 @@ export default function App() {
             <small>A calmer connection.</small>
           </span>
         </div>
-        <div className="sidebar-section-heading">
-          YOUR PLACES
+        <div className="sidebar-places">
+          <div className="sidebar-section-heading">
+            YOUR PLACES
+            <button
+              className="icon-button"
+              title="Add connection"
+              aria-label="Add connection"
+              onClick={() => setConnectionForm('new')}
+            >
+              <Plus size={16} />
+            </button>
+          </div>
           <button
-            className="icon-button"
-            title="Add connection"
-            aria-label="Add connection"
-            onClick={() => setConnectionForm('new')}
+            className="place local-place"
+            onClick={() => {
+              const local = { ...sessions.find((session) => session.id === 'local')! };
+              if (active === 'left') setLeftTarget(local);
+              else setRightTarget(local);
+            }}
           >
-            <Plus size={16} />
+            <HardDrive size={17} />
+            <span>
+              This computer<small>Your local files</small>
+            </span>
           </button>
-        </div>
-        <button
-          className="place local-place"
-          onClick={() => {
-            const local = { ...sessions.find((session) => session.id === 'local')! };
-            if (active === 'left') setLeftTarget(local);
-            else setRightTarget(local);
-          }}
-        >
-          <HardDrive size={17} />
-          <span>
-            This computer<small>Your local files</small>
-          </span>
-        </button>
-        <div className="sidebar-divider" />
-        <div className="sidebar-section-heading saved-heading">
-          SAVED CONNECTIONS<span>{profiles.length.toString().padStart(2, '0')}</span>
-        </div>
-        <div className="saved-connections">
-          {profiles.length ? (
-            profiles.map((profile) => (
-              <div className="connection-item" key={profile.id}>
-                <button className="place" onClick={() => connect(profile, active)}>
-                  <Server size={17} />
-                  <span>
-                    {profile.name}
-                    <small>
-                      {profile.protocol.toUpperCase()} · {profile.host}
-                    </small>
-                  </span>
-                  <span
-                    className={`status-dot ${sessions.some((session) => session.profileId === profile.id) ? 'online' : ''}`}
-                  />
+          <div className="sidebar-divider" />
+          <div className="sidebar-section-heading saved-heading">
+            SAVED CONNECTIONS<span>{profiles.length.toString().padStart(2, '0')}</span>
+          </div>
+          <div className="saved-connections">
+            {profiles.length ? (
+              profiles.map((profile) => (
+                <div className="connection-item" key={profile.id}>
+                  <button className="place" onClick={() => connect(profile, active)}>
+                    <Server size={17} />
+                    <span>
+                      {profile.name}
+                      <small>
+                        {profile.protocol.toUpperCase()} · {profile.host}
+                      </small>
+                    </span>
+                    <span
+                      className={`status-dot ${sessions.some((session) => session.profileId === profile.id) ? 'online' : ''}`}
+                    />
+                  </button>
+                  <button
+                    className="connection-more icon-button"
+                    aria-label={`Options for ${profile.name}`}
+                    onClick={() =>
+                      setConnectionMenu(connectionMenu === profile.id ? undefined : profile.id)
+                    }
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  {connectionMenu === profile.id && (
+                    <div className="connection-options">
+                      <button
+                        onClick={() => {
+                          setConnectionMenu(undefined);
+                          setConnectionForm(profile);
+                        }}
+                      >
+                        <Pencil size={13} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setConnectionMenu(undefined);
+                          try {
+                            await value(window.cosy.deleteProfile(profile.id));
+                            setProfiles((previous) =>
+                              previous.filter((item) => item.id !== profile.id),
+                            );
+                          } catch (error) {
+                            onError(error);
+                          }
+                        }}
+                      >
+                        <Trash2 size={13} />
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="no-connections">
+                <Server size={23} />
+                <p>
+                  Your familiar servers,
+                  <br />
+                  one quiet little list.
+                </p>
+                <button onClick={() => setConnectionForm('new')}>
+                  <Plus size={13} />
+                  Add a connection
                 </button>
-                <button
-                  className="connection-more icon-button"
-                  aria-label={`Options for ${profile.name}`}
-                  onClick={() =>
-                    setConnectionMenu(connectionMenu === profile.id ? undefined : profile.id)
-                  }
-                >
-                  <MoreHorizontal size={16} />
-                </button>
-                {connectionMenu === profile.id && (
-                  <div className="connection-options">
+              </div>
+            )}
+          </div>
+          {sessions.some((session) => session.id !== 'local') && (
+            <div className="session-list">
+              <div className="sidebar-section-heading">OPEN SESSIONS</div>
+              {sessions
+                .filter((session) => session.id !== 'local')
+                .map((session) => (
+                  <div key={session.id}>
+                    <span>{session.label}</span>
                     <button
-                      onClick={() => {
-                        setConnectionMenu(undefined);
-                        setConnectionForm(profile);
-                      }}
+                      className="icon-button"
+                      title="Reconnect session"
+                      aria-label={`Reconnect ${session.label}`}
+                      disabled={reconnecting.includes(session.id)}
+                      onClick={() => void reconnect(session.id).catch(onError)}
                     >
-                      <Pencil size={13} />
-                      Edit
+                      <RefreshCw
+                        size={14}
+                        className={reconnecting.includes(session.id) ? 'spin' : ''}
+                      />
                     </button>
                     <button
+                      className="icon-button"
+                      title="Disconnect session"
+                      aria-label={`Disconnect ${session.label}`}
                       onClick={async () => {
-                        setConnectionMenu(undefined);
                         try {
-                          await value(window.cosy.deleteProfile(profile.id));
-                          setProfiles((previous) =>
-                            previous.filter((item) => item.id !== profile.id),
+                          await value(window.cosy.disconnect(session.id));
+                          setSessions((previous) =>
+                            previous.filter((item) => item.id !== session.id),
                           );
                         } catch (error) {
                           onError(error);
                         }
                       }}
                     >
-                      <Trash2 size={13} />
-                      Remove
+                      <Unplug size={14} />
                     </button>
                   </div>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="no-connections">
-              <Server size={23} />
-              <p>
-                Your familiar servers,
-                <br />
-                one quiet little list.
-              </p>
-              <button onClick={() => setConnectionForm('new')}>
-                <Plus size={13} />
-                Add a connection
-              </button>
+                ))}
             </div>
           )}
         </div>
-        {sessions.some((session) => session.id !== 'local') && (
-          <div className="session-list">
-            <div className="sidebar-section-heading">OPEN SESSIONS</div>
-            {sessions
-              .filter((session) => session.id !== 'local')
-              .map((session) => (
-                <div key={session.id}>
-                  <span>{session.label}</span>
-                  <button
-                    className="icon-button"
-                    title="Reconnect session"
-                    aria-label={`Reconnect ${session.label}`}
-                    disabled={reconnecting.includes(session.id)}
-                    onClick={() => void reconnect(session.id).catch(onError)}
-                  >
-                    <RefreshCw
-                      size={14}
-                      className={reconnecting.includes(session.id) ? 'spin' : ''}
-                    />
-                  </button>
-                  <button
-                    className="icon-button"
-                    title="Disconnect session"
-                    aria-label={`Disconnect ${session.label}`}
-                    onClick={async () => {
-                      try {
-                        await value(window.cosy.disconnect(session.id));
-                        setSessions((previous) =>
-                          previous.filter((item) => item.id !== session.id),
-                        );
-                      } catch (error) {
-                        onError(error);
-                      }
-                    }}
-                  >
-                    <Unplug size={14} />
-                  </button>
-                </div>
-              ))}
-          </div>
-        )}
         <div className="sidebar-bottom">
           <div className="comfort-note">
             <ShieldCheck size={17} />
@@ -1575,6 +1816,10 @@ export default function App() {
           <button onClick={() => setShowAppearance(true)}>
             <Settings2 size={16} />
             Appearance
+          </button>
+          <button onClick={() => setShowTrustedServers(true)}>
+            <ShieldCheck size={16} />
+            Trusted SSH servers
           </button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -1875,6 +2120,7 @@ export default function App() {
           </div>
         </Modal>
       )}
+      {showTrustedServers && <TrustedServers onClose={() => setShowTrustedServers(false)} />}
       {editorId && documents.length > 0 && (
         <Editor
           documents={documents}

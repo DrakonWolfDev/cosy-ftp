@@ -1,6 +1,14 @@
 # Implementation progress
 
-Updated 25 October 2026. This is a working **0.2.0 development preview**, not a completed v1. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+Updated 25 October 2026. This is a working **0.3.0 development preview**, not a completed v1. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+
+## 0.3.0 follow-up
+
+- Side-by-side original/draft comparison and explicit conflict review. Stale reviews are refused; review does not upload, and later saves still check for changes.
+- Native Save copy as exports drafts without changing their original binding or saved status. It works offline and after recovery-write failures, and protects local originals and symbolic-link destinations.
+- Quit protection tracks failed recovery writes, keeps the app open when the warning is cancelled, and lets the user rescue the in-memory text. Normal persisted drafts still close without unnecessary warnings.
+- Trusted SSH servers can be inspected and explicitly forgotten after disconnecting. Cancellation preserves trust, profiles and credentials are retained, and the next connection must verify the new fingerprint. FTPS validation remains separate.
+- Fixed sidebar overflow and keyboard access to the compact transfer queue. Desktop checks cover a 980×680 window, comparison and trust dialogs, export during disk-write failure, and cancelled quit/forget confirmations.
 
 ## 0.2.0 follow-up
 
@@ -26,7 +34,7 @@ Updated 25 October 2026. This is a working **0.2.0 development preview**, not a 
 
 ## Verification performed
 
-- **32 service/integration tests pass on Windows and Ubuntu 24.04.** They cover nested/Unicode copies, overwrite protection, permissions, cancellation, actual network loss, staging cleanup, links, self-copy prevention, queue retry/moves, sorting/ranges, reconnects, text limits, recovery/conflicts, disk-write failure, credentials, certificate guidance and IPC validation.
+- The suite now contains **38 service/integration tests**, adding reviewed-conflict recovery, stale-review rejection, offline rescue export, original/link protection and trust-store failure/cancellation coverage. Platform verification for 0.3.0 is recorded when completed below.
 - Real loopback servers exercise SFTP, FTP, explicit FTPS, invalid certificates, wrong certificate hostnames and cross-protocol streaming. A separate Python/Paramiko SFTP server validates editing and POSIX replacement.
 - Desktop automation covers browsing, copying, text saves, folders, profiles, themes, uploads, two SFTP sessions, moves, native password encryption or safe fallback, pinned/changed SSH keys, and renderer isolation.
 - A 2,000-entry directory is scrolled, selected and filtered with bounded row rendering. Automated axe WCAG 2 A/AA and 2.1 A/AA checks pass for the editor, themes and selected rows. Manual accessibility testing is still required.
