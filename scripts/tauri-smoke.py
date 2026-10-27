@@ -359,7 +359,10 @@ with tempfile.TemporaryDirectory(prefix="cosy-tauri-smoke-") as directory:
             accessibility = {}
             for theme in ("dark", "light"):
                 if js("return document.documentElement.dataset.theme") != theme:
-                    js("Array.from(document.querySelectorAll('.sidebar button')).find(el=>el.textContent.includes('theme')).click()")
+                    js("Array.from(document.querySelectorAll('.sidebar button')).find(el=>el.textContent.trim()==='Appearance').click();")
+                    wait_ui("return !!document.querySelector('.theme-options');")
+                    js("const index=arguments[0]==='light'?0:1; document.querySelectorAll('.theme-options input')[index].click();", [theme])
+                    js("document.querySelector('[aria-label=\"Close dialog\"]').click();")
                 time.sleep(0.25)
                 assert js("return document.documentElement.dataset.theme") == theme
                 js((ROOT / "node_modules/axe-core/axe.min.js").read_text(encoding="utf-8"))
