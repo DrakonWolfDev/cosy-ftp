@@ -52,9 +52,14 @@ jobs:
         run: node scripts/checksums.cjs
       - name: Native Linux desktop workflows
         if: runner.os == 'Linux'
+        # Xvfb has no GPU; keep WebKit away from accelerated compositing.
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
         run: |
           cargo install tauri-driver --locked
-          xvfb-run -a python scripts/tauri-smoke.py src-tauri/target/release/cosy-ftp
+          dbus-run-session -- xvfb-run -a python scripts/tauri-smoke.py src-tauri/target/release/cosy-ftp
       - uses: actions/upload-artifact@v7
         with:
           name: cosy-ftp-tauri-${{ runner.os }}
