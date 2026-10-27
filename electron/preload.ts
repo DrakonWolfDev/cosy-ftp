@@ -18,6 +18,11 @@ const api: Api = {
   reconnect: invoke('cosy:reconnect'),
   trustedHosts: invoke('cosy:trusted-hosts'),
   forgetHost: invoke('cosy:forget-host'),
+  trustedCertificates: async () => ({ ok: true, value: [] }),
+  forgetCertificate: async () => ({
+    ok: false,
+    error: 'FTPS certificate exceptions require the Tauri application.',
+  }),
   mkdir: invoke('cosy:mkdir'),
   rename: invoke('cosy:rename'),
   remove: invoke('cosy:remove'),

@@ -110,6 +110,8 @@ export interface Api {
   reconnect(id: string): Promise<Result<SessionInfo>>;
   trustedHosts(): Promise<Result<TrustedHost[]>>;
   forgetHost(host: string): Promise<Result<boolean>>;
+  trustedCertificates(): Promise<Result<TrustedHost[]>>;
+  forgetCertificate(host: string): Promise<Result<boolean>>;
   mkdir(input: { location: Location; name: string }): Promise<Result<void>>;
   rename(input: { location: Location; name: string; newName: string }): Promise<Result<void>>;
   remove(input: { location: Location; names: string[] }): Promise<Result<boolean>>;

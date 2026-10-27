@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { BrandMark } from './BrandMark';
 import { selectionRange, sortEntries, type SortField, type SortDirection } from './file-list';
 import {
   ArrowDown,
@@ -18,7 +19,6 @@ import {
   FolderOpen,
   FolderPlus,
   HardDrive,
-  Leaf,
   Link2,
   LoaderCircle,
   Moon,
@@ -287,7 +287,6 @@ function FilePane(props: PaneProps) {
           {session?.protocol === 'local' ? <HardDrive size={19} /> : <Server size={19} />}
         </div>
         <div className="endpoint-title">
-          <span className="eyebrow">{props.side === 'left' ? 'LEFT PANE' : 'RIGHT PANE'}</span>
           <select
             aria-label={`${props.side} connection`}
             value={location.sessionId}
@@ -924,8 +923,12 @@ function Queue({
   onError(error: unknown): void;
   onRefresh(): void;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const active = jobs.filter((job) => job.state === 'running' || job.state === 'queued');
+  const needsAttention = active.length > 0 || jobs.some((job) => job.state === 'failed');
+  useEffect(() => {
+    if (needsAttention) setExpanded(true);
+  }, [needsAttention]);
   return (
     <section className="queue" aria-label="Transfer queue">
       <header>
@@ -1388,7 +1391,14 @@ function Editor({
   }
 }
 
-function TrustedServers({ onClose }: { onClose(): void }) {
+function TrustedServers({
+  onClose,
+  protocol = 'sftp',
+}: {
+  onClose(): void;
+  protocol?: 'sftp' | 'ftps';
+}) {
+  const ftps = protocol === 'ftps';
   const [hosts, setHosts] = useState<TrustedHost[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -1397,7 +1407,7 @@ function TrustedServers({ onClose }: { onClose(): void }) {
     setLoading(true);
     setError('');
     try {
-      setHosts(await value(window.cosy.trustedHosts()));
+      setHosts(await value(ftps ? window.cosy.trustedCertificates() : window.cosy.trustedHosts()));
     } catch (error) {
       setError(message(error));
     } finally {
@@ -1408,11 +1418,21 @@ function TrustedServers({ onClose }: { onClose(): void }) {
     void refresh();
   }, []);
   return (
-    <Modal title="Trusted SSH servers" wide onClose={() => !busy && onClose()}>
+    <Modal
+      title={ftps ? 'Trusted FTPS certificates' : 'Trusted SSH servers'}
+      wide
+      onClose={() => !busy && onClose()}
+    >
       <p className="modal-description">
-        These fingerprints identify SFTP servers you have explicitly trusted. If an administrator
-        replaces a server key, verify the new fingerprint through a trusted channel before accepting
-        it.
+        {ftps ? (
+          'These are exact FTPS certificates you have explicitly trusted for a server and port. A replacement requires a new review. Expired certificates are refused. Windows certificate trust is unchanged.'
+        ) : (
+          <>
+            These fingerprints identify SFTP servers you have explicitly trusted. If an
+            administrator replaces a server key, verify the new fingerprint through a trusted
+            channel before accepting it.
+          </>
+        )}
       </p>
       <button disabled={loading || busy} onClick={() => void refresh()}>
         <RefreshCw size={14} />
@@ -1447,7 +1467,14 @@ function TrustedServers({ onClose }: { onClose(): void }) {
                   setBusy(true);
                   setError('');
                   try {
-                    if (await value(window.cosy.forgetHost(host.host))) await refresh();
+                    if (
+                      await value(
+                        ftps
+                          ? window.cosy.forgetCertificate(host.host)
+                          : window.cosy.forgetHost(host.host),
+                      )
+                    )
+                      await refresh();
                   } catch (error) {
                     setError(message(error));
                   } finally {
@@ -1463,12 +1490,15 @@ function TrustedServers({ onClose }: { onClose(): void }) {
         </ul>
       ) : (
         <p className="form-hint">
-          No trusted SSH servers yet. SFTP connections ask you to verify a server fingerprint on
-          first use.
+          {ftps
+            ? 'No FTPS certificate exceptions saved. Certificates that pass normal validation do not need an exception.'
+            : 'No trusted SSH servers yet. SFTP connections ask you to verify a server fingerprint on first use.'}
         </p>
       )}
       <p className="form-hint">
-        FTPS uses certificate validation separately; this list does not override FTPS certificates.
+        {ftps
+          ? 'SSH host keys are managed separately under Trusted SSH servers.'
+          : 'FTPS certificates are managed separately under Trusted FTPS certificates.'}
       </p>
     </Modal>
   );
@@ -1501,6 +1531,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
   const [showTrustedServers, setShowTrustedServers] = useState(false);
+  const [showTrustedCertificates, setShowTrustedCertificates] = useState(false);
   const [reconnecting, setReconnecting] = useState<string[]>([]);
   const [connectionMenu, setConnectionMenu] = useState<string>();
   const refreshAll = useCallback(() => setRefresh((previous) => previous + 1), []);
@@ -1629,7 +1660,7 @@ export default function App() {
   if (fatal)
     return (
       <div className="startup">
-        <Leaf size={40} />
+        <BrandMark size={40} />
         <h1>Cosy FTP</h1>
         <p role="alert">{fatal}</p>
       </div>
@@ -1637,7 +1668,7 @@ export default function App() {
   if (!initial)
     return (
       <div className="startup">
-        <Leaf size={40} />
+        <BrandMark size={40} />
         <h1>Getting comfortable…</h1>
         <LoaderCircle className="spin" />
       </div>
@@ -1649,7 +1680,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
-            <Leaf size={22} />
+            <BrandMark size={22} />
           </div>
           <span>
             cosy<span className="brand-ftp">ftp</span>
@@ -1821,6 +1852,10 @@ export default function App() {
             <ShieldCheck size={16} />
             Trusted SSH servers
           </button>
+          <button onClick={() => setShowTrustedCertificates(true)}>
+            <ShieldCheck size={16} />
+            Trusted FTPS certificates
+          </button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {theme === 'dark' ? 'Warm light theme' : 'Muted dark theme'}
@@ -1832,21 +1867,7 @@ export default function App() {
       </aside>
       <main className="workspace">
         <header className="workspace-header">
-          <div>
-            <div className="eyebrow">A PLACE FOR EVERYTHING</div>
-            <h1>Your files. A little more settled.</h1>
-            <p>Two places, one comfortable workspace.</p>
-          </div>
-          <button className="primary" onClick={() => setConnectionForm('new')}>
-            <Plus size={16} />
-            New connection
-          </button>
-        </header>
-        <div className="workspace-toolbar">
-          <div className="workspace-label">
-            <span className="live-dot" />
-            File workspace
-          </div>
+          <h1>File workspace</h1>
           <div className="transfer-actions">
             <label className="replace-toggle">
               <input
@@ -1872,7 +1893,11 @@ export default function App() {
               Copy {active === 'left' ? <ArrowRight size={14} /> : <ArrowLeft size={14} />}
             </button>
           </div>
-        </div>
+          <button className="primary new-connection" onClick={() => setConnectionForm('new')}>
+            <Plus size={16} />
+            New connection
+          </button>
+        </header>
         <div className="panes">
           <FilePane
             onReconnect={reconnect}
@@ -2109,7 +2134,7 @@ export default function App() {
               />
               <Moon size={18} />
               <span>
-                Muted dark<small>Dark backgrounds with muted green accents.</small>
+                Muted dark<small>Slate backgrounds with soft blue accents.</small>
               </span>
             </label>
           </fieldset>
@@ -2121,6 +2146,9 @@ export default function App() {
         </Modal>
       )}
       {showTrustedServers && <TrustedServers onClose={() => setShowTrustedServers(false)} />}
+      {showTrustedCertificates && (
+        <TrustedServers protocol="ftps" onClose={() => setShowTrustedCertificates(false)} />
+      )}
       {editorId && documents.length > 0 && (
         <Editor
           documents={documents}

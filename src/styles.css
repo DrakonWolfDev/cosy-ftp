@@ -5,46 +5,46 @@
     BlinkMacSystemFont,
     sans-serif;
   font-size: 13px;
-  color: #dce2dd;
-  background: #171c1a;
+  color: #e3e7f0;
+  background: #181d29;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --bg: #171c1a;
-  --sidebar: #131815;
-  --panel: #1c221f;
-  --raised: #222a25;
-  --hover: #28322b;
-  --line: #303a32;
-  --line-soft: #28312a;
-  --text: #dce2dd;
-  --muted: #a2aea4;
-  --quiet: #87978a;
-  --accent: #b2c9a1;
-  --accent-text: #182314;
-  --selected: #2c392c;
-  --folder: #d3bb88;
-  --danger: #e2a393;
+  --bg: #181d29;
+  --sidebar: #141925;
+  --panel: #1d2433;
+  --raised: #252e40;
+  --hover: #2d3950;
+  --line: #3b4860;
+  --line-soft: #2b3549;
+  --text: #e3e7f0;
+  --muted: #abb7cb;
+  --quiet: #98a8c2;
+  --accent: #adc9ff;
+  --accent-text: #17243e;
+  --selected: #2b3e60;
+  --folder: #e4b5a1;
+  --danger: #ffb2a9;
   --shadow: #0005;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
-  --bg: #f5f3ed;
-  --sidebar: #eae9e0;
-  --panel: #fcfbf7;
-  --raised: #f1f0e9;
-  --hover: #e6eadd;
-  --line: #d6d9cc;
-  --line-soft: #e4e5db;
-  --text: #303b2f;
-  --muted: #596552;
-  --quiet: #5e6a55;
-  --accent: #4a6a3d;
+  --bg: #f6f5f8;
+  --sidebar: #ececf3;
+  --panel: #fefcfc;
+  --raised: #f0eff5;
+  --hover: #e5eaf6;
+  --line: #cbd0df;
+  --line-soft: #e0e3ec;
+  --text: #29334b;
+  --muted: #56627c;
+  --quiet: #5d6980;
+  --accent: #355b9a;
   --accent-text: #fff;
-  --selected: #e3ebd9;
-  --folder: #94703e;
-  --danger: #ac4a35;
-  --shadow: #414b3325;
+  --selected: #e0e9fa;
+  --folder: #97583f;
+  --danger: #ad3f43;
+  --shadow: #28344b25;
   color-scheme: light;
   color: var(--text);
   background: var(--bg);
@@ -485,47 +485,24 @@ th:nth-child(4) .sort-button {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 31px 26px 0;
+  padding: 16px 20px 0;
 }
 .workspace-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  padding: 0 0 28px;
+  gap: 14px;
+  padding-bottom: 14px;
+  flex-shrink: 0;
 }
-.workspace-header .eyebrow {
-  color: var(--accent);
-  font-size: 9px;
-  letter-spacing: 2px;
+.workspace-header h1 {
+  margin: 0 auto 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
 }
-h1 {
-  font-size: 26px;
-  font-weight: 450;
-  letter-spacing: -0.65px;
-  margin: 10px 0 9px;
-}
-.workspace-header p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-.workspace-header > button {
+.workspace-header .new-connection {
   font-size: 11px;
-}
-.workspace-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 12px;
-}
-.workspace-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--muted);
+  padding: 7px 11px;
 }
 .live-dot {
   display: inline-block;
@@ -595,11 +572,11 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 15px;
+  padding: 10px 12px;
 }
 .endpoint-icon {
-  width: 33px;
-  height: 33px;
+  width: 29px;
+  height: 29px;
   display: grid;
   place-items: center;
   background: var(--raised);
@@ -622,7 +599,7 @@ h1 {
 .endpoint-title select {
   display: block;
   width: 100%;
-  padding: 3px 12px 0 0;
+  padding: 5px 12px 5px 0;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -657,7 +634,7 @@ select optgroup {
   background: var(--danger);
 }
 .path-bar {
-  margin: 0 12px 12px;
+  margin: 0 12px 8px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: var(--bg);
@@ -874,7 +851,7 @@ tr.selected .file-date {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 12px 2px 16px;
+  padding: 8px 2px 10px;
   font-size: 9px;
   color: var(--quiet);
 }
@@ -1085,7 +1062,7 @@ progress::-webkit-progress-value {
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: #080e0bb3;
+  background: #0b1020b3;
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1445,13 +1422,10 @@ h2 {
     padding-right: 10px;
   }
   .workspace {
-    padding: 25px 18px 0;
-  }
-  h1 {
-    font-size: 23px;
+    padding: 14px 16px 0;
   }
   .pane-header {
-    padding: 13px 11px;
+    padding: 10px 11px;
     gap: 8px;
   }
   .connection-badge {
@@ -1488,14 +1462,8 @@ h2 {
   .workspace-header {
     padding-bottom: 10px;
   }
-  .workspace-header .eyebrow,
-  .workspace-header p,
   .workspace-hint {
     display: none;
-  }
-  .workspace-header h1 {
-    font-size: 22px;
-    margin: 5px 0;
   }
   .pane-header {
     padding: 10px 11px;

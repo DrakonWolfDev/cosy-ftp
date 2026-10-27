@@ -6,19 +6,21 @@ Browse local folders or independent SFTP, explicit FTPS and FTP sessions in eith
 
 ## Run from source
 
-Requires Node.js 24.5 or newer and npm. The packaged application does not require Node.js.
+Requires Node.js 24.5 or newer, npm, current stable Rust and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Windows needs Microsoft C++ Build Tools, WebView2 and native Strawberry Perl for the SSH dependency build; Linux needs WebKitGTK 4.1 and OpenSSL development libraries. The packaged application uses Rust + Tauri and does not bundle Node.js or Electron.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-`npm run dev` builds and opens the desktop application. After a build, `npm start` opens it again. This is a desktop app, not a browser-hosted website.
+`npm run dev` (or `npm start`) opens the Tauri desktop application with the Vite development server. `npm run build` compiles the native application without installers; `npm run dist` builds distribution packages. This is a desktop app, not a browser-hosted website.
+
+On first launch, public connection profiles, pinned SSH fingerprints and editor recovery copies are imported from the Electron preview when available. The originals are retained. Remembered Electron passwords must be entered again; Tauri stores newly remembered passwords in the operating system credential store. `COSY_USER_DATA` selects an isolated data directory and disables automatic import for testing.
 
 ## Use the workspace
 
 1. Choose a local folder in either pane using the path bar or folder chooser.
-2. Add a saved connection, then select it in a pane. For SFTP, verify the first-use host-key fingerprint through a trusted channel. FTPS requires a valid certificate. Plain FTP needs explicit opt-in.
+2. Add a saved connection, then select it in a pane. For SFTP, verify the first-use host-key fingerprint through a trusted channel. For self-signed FTPS, compare the certificate fingerprint with the server's FTPS administration settings and choose **Trust certificate**. See [FTPS certificate trust](docs/FTPS_CERTIFICATES.md). Plain FTP needs explicit opt-in.
 3. Select items with the checkboxes. Use **Copy** or drag items to the other pane. Remote-to-remote copies pass through this computer.
 4. **Move** uses a same-server/local rename and requires an unused destination name. Delete is permanent; folders must be empty.
 5. Double-click a UTF-8 text file (up to 2 MiB). Changes are saved as local recovery copies. **Save to server** uploads explicitly; a changed original is refused. Reopen working copies from the editor strip after restarting, and reconnect their original saved connection when necessary.
@@ -37,22 +39,20 @@ Existing files are protected by default. **Replace existing** requires confirmat
 
 ```sh
 npm run check
-npm run test:desktop
-npm run test:stress
+npm run test:protocol
 npm run package
-npm run test:packaged
-npm run dist -- --publish never
+npm run dist
 ```
 
-`check` type-checks the app and test harnesses, runs local/SFTP tests, then builds. FTP/FTPS and independent-SFTP integration tests need Python 3.12+ and these optional test dependencies:
+`check` type-checks the interface and retained prototype test harnesses, runs Rust unit tests, builds the interface and checks the native backend. `test:protocol` runs Rust tests against independent Python loopback SFTP/FTP/FTPS servers and needs Python 3.12+ and these dependencies:
 
 ```sh
 python -m pip install -r tests/requirements.txt
 ```
 
-Enable the complete protocol suite with `$env:COSY_PROTOCOL_TESTS='1'` in PowerShell, or `export COSY_PROTOCOL_TESTS=1` in a POSIX shell, then run `npm run check`. Tests use temporary files and loopback-only servers with disposable credentials.
+Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tests use temporary files and loopback-only servers with disposable credentials. The old TypeScript service tests remain available as `npm run test:legacy`; their results establish prototype behaviour, not Rust parity.
 
-`package` creates an unpacked application in `release/`; `dist` creates Windows NSIS/portable or Linux AppImage/deb artifacts on the matching operating system. Preview packages are unsigned. On headless Linux, use `xvfb-run -a npm run test:desktop`; the test-only `COSY_TEST_DISABLE_SANDBOX=1` accommodates CI hosts that prohibit Chromium sandbox setup. It is not a normal application launch setting.
+`package` and `dist` create Windows NSIS or Linux AppImage/deb packages under `src-tauri/target/release/bundle/` on the matching operating system. Preview packages are unsigned. Old files under `release/` are Electron builds and are not refreshed by Tauri commands.
 
 ## Project documents
 
@@ -63,4 +63,4 @@ Enable the complete protocol suite with `$env:COSY_PROTOCOL_TESTS='1'` in PowerS
 - [Reliability limits and recovery](docs/RELIABILITY.md)
 - [Original concept](PROJECT_IDEAS.md)
 
-Electron is the initial implementation, with a larger runtime than the provisional Tauri option in the original concept. Package footprint and memory use remain part of the framework review before v1.
+The 0.4.0 working tree migrates the application to Rust + Tauri, retaining React/TypeScript. The Electron implementation remains as a reference for parity testing. Native qualification and footprint measurements are tracked in the [migration notes](docs/TAURI_MIGRATION.md).

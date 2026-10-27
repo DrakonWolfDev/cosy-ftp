@@ -9,3 +9,5 @@ release/
 *.log
 .env*
 !.env.example
+src-tauri/target/
+src-tauri/gen/

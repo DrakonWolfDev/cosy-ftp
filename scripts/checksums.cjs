@@ -4,21 +4,27 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 
 async function main() {
+  const root = path.resolve(process.argv[2] ?? 'src-tauri/target/release/bundle');
   const artifacts = [];
-  for (const directory of ['release', 'release/linux']) {
-    for (const item of await fsp.readdir(directory, { withFileTypes: true }).catch(() => [])) {
+  async function visit(directory) {
+    for (const item of await fsp.readdir(directory, { withFileTypes: true })) {
+      if (item.isDirectory()) await visit(path.join(directory, item.name));
       if (item.isFile() && /\.(exe|AppImage|deb)$/.test(item.name))
         artifacts.push(path.join(directory, item.name));
     }
   }
+  await visit(root);
+  if (!artifacts.length) throw new Error('No Tauri packages found in the selected directory');
   const lines = [];
   for (const file of artifacts.sort()) {
     const hash = createHash('sha256');
     for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
-    lines.push(`${hash.digest('hex')}  ${path.relative('release', file).replaceAll('\\', '/')}`);
+    lines.push(`${hash.digest('hex')}  ${path.relative(root, file).replaceAll('\\', '/')}`);
   }
-  await fsp.writeFile('release/SHA256SUMS.txt', `${lines.join('\n')}\n`);
-  console.log(`${lines.length} preview artifact checksums written to release/SHA256SUMS.txt`);
+  await fsp.writeFile(path.join(root, 'SHA256SUMS.txt'), `${lines.join('\n')}\n`);
+  console.log(
+    `${lines.length} preview artifact checksums written to ${path.join(root, 'SHA256SUMS.txt')}`,
+  );
 }
 main().catch((error) => {
   console.error(error);

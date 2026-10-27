@@ -1,5 +1,7 @@
 # Reliability, recovery and preview limits
 
+The working tree now uses Rust + Tauri. See [TAURI_MIGRATION.md](TAURI_MIGRATION.md) for native verification and remaining qualification; older Electron test evidence does not establish Rust parity.
+
 ## Copies and moves
 
 Copies stream through the client with bounded buffers. Every file is written beside its destination under a random `.cosy-<uuid>.part` name, checked for size/source metadata changes, then committed by rename. Existing files are refused by default. Replacing a file is explicit; the client never deletes the original to force a failed rename to succeed. Not all FTP/SFTP servers support replacement.
@@ -32,13 +34,15 @@ If recovery storage cannot accept the latest changes, the app warns before quitt
 
 ## FTPS certificate errors
 
-An unverified certificate error happens before password authentication. Check the server certificate's validity dates, hostname and full certificate chain with the server administrator. A self-signed certificate or missing intermediate can cause an "unable to verify the first certificate" error; changing the account password does not correct certificate trust. The desktop app now gives certificate-specific guidance instead of exposing Node.js command-line suggestions. Certificate verification stays enabled.
+Certificate approval happens before password authentication. Normal CA/hostname/date validation is attempted first. Self-signed/private certificates and name mismatches can be reviewed in a fingerprint dialog and explicitly pinned for that host and port. Replacements require review; expired or invalid server-authentication certificates are refused. Exception-mode data channels must present the accepted control certificate. Failure to save a trust decision prevents login. See [FTPS_CERTIFICATES.md](FTPS_CERTIFICATES.md).
 
 ## Credentials and trust
 
-Profiles and SSH fingerprints live in `connections.json` under the Electron user-data directory (`%APPDATA%/cosy-ftp` on Windows, usually `~/.config/cosy-ftp` on Linux). Passwords are remembered only on request and encrypted using Electron's asynchronous OS-backed safeStorage. Insecure Linux `basic_text` storage is refused. If secure storage is unavailable, use session-only passwords. Different Linux keyring/desktop configurations still require field testing.
+Profiles and SSH fingerprints live in `connections.json` under Tauri's application-data directory (`%APPDATA%/dev.cosyftp.desktop` on Windows, usually `~/.local/share/dev.cosyftp.desktop` on Linux). Passwords are remembered only on request in Windows Credential Manager or Linux Secret Service. If secure storage is unavailable, use session-only passwords. Different Linux keyring/desktop configurations still require field testing.
 
-SSH first-use trust requires a native confirmation with the SHA-256 fingerprint; subsequent mismatches are refused. **Trusted SSH servers** lists those fingerprints. If an administrator legitimately rotates a key, verify the replacement independently, disconnect the server's open sessions, then use **Forget trust** and confirm the removal. The next connection requires a new fingerprint confirmation. Forgetting a key preserves saved profiles and encrypted credentials; cancelling the confirmation preserves the fingerprint. FTPS uses normal TLS certificate/hostname verification separately, with no certificate bypass option. Plain FTP visibly warns that passwords and files are unencrypted.
+On first launch, public profiles, SSH fingerprints and recovery copies are imported from the Electron preview's data directory (`%APPDATA%/cosy-ftp` or `~/.config/cosy-ftp`). Those original files are retained. Remembered Electron passwords require re-entry because their encryption is specific to Electron. `COSY_USER_DATA` selects an isolated test directory and disables import.
+
+SSH first-use trust requires a native confirmation with the SHA-256 fingerprint; subsequent mismatches are refused. **Trusted SSH servers** lists those fingerprints. If an administrator legitimately rotates a key, verify the replacement independently, disconnect the server's open sessions, then use **Forget trust** and confirm the removal. The next connection requires a new fingerprint confirmation. Forgetting a key preserves saved profiles and encrypted credentials; cancelling the confirmation preserves the fingerprint. FTPS certificate pins are managed separately under Trusted FTPS certificates; they never grant SSH trust. Plain FTP visibly warns that passwords and files are unencrypted.
 
 ## Release validation still required
 

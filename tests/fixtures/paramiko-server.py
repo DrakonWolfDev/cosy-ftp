@@ -6,9 +6,11 @@ import socket
 import sys
 import threading
 import struct
+import base64
+import hashlib
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / '.test-tools'))
+sys.path.append(str(Path(__file__).resolve().parents[2] / '.test-tools'))
 import paramiko
 
 root = Path(sys.argv[1]).resolve()
@@ -115,6 +117,11 @@ class ExtendedSFTPServer(paramiko.SFTPServer):
 
 def serve(client):
     transport = paramiko.Transport(client)
+    # This fixture has no moduli file. Remove GEX before Paramiko snapshots its
+    # advertised algorithms, so advertisement and negotiation stay consistent
+    # for clients using Windows CNG as well as OpenSSL.
+    options = transport.get_security_options()
+    options.kex = tuple(name for name in options.kex if not name.startswith('diffie-hellman-group-exchange-'))
     transport.add_server_key(key)
     transport.set_subsystem_handler('sftp', ExtendedSFTPServer, Filesystem)
     try:
@@ -129,7 +136,7 @@ def serve(client):
 listener = socket.socket()
 listener.bind(('127.0.0.1', 0))
 listener.listen(20)
-print(json.dumps({'port': listener.getsockname()[1]}), flush=True)
+print(json.dumps({'port': listener.getsockname()[1], 'fingerprint': 'SHA256:' + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')}), flush=True)
 while True:
     client, _ = listener.accept()
     threading.Thread(target=serve, args=(client,), daemon=True).start()

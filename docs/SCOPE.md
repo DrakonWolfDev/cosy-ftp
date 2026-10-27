@@ -7,9 +7,9 @@ A calm desktop file manager for Windows 11 x64 and mainstream Linux x64 distribu
 ## Protocols and credentials
 
 - SFTP over SSH with password authentication initially; pin SHA-256 host-key fingerprints after explicit first-use confirmation. Changed keys are refused. Private-key authentication is follow-up work.
-- Explicit FTPS with normal certificate and hostname validation. No ignore-certificate switch.
+- Explicit FTPS with normal certificate and hostname validation. Verified self-signed/private certificates and name mismatches can be approved through an explicit, host/port-scoped SHA-256 certificate pin. Replacements require review; expired certificates are refused. No blanket ignore-certificate switch.
 - Plain FTP is opt-in per connection and visibly identified as unencrypted.
-- Store passwords only when requested and the operating system provides a secure credential backend. On Linux, refuse Electron's insecure `basic_text` fallback. Otherwise prompt each session.
+- Store passwords only when requested and the operating system provides a secure credential backend: Windows Credential Manager or Linux Secret Service. Otherwise prompt each session; never fall back to plaintext storage.
 - Profiles contain no plaintext passwords. No protocol debug logging of authentication traffic.
 
 ## Files and transfers
