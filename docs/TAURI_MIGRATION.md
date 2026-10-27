@@ -2,6 +2,10 @@
 
 Working-tree migration started 26 October 2026, targeting 0.4.0. This is a development preview; the 0.3.0 Electron test evidence does not qualify the Rust implementation.
 
+## Current release preparation
+
+On 27 October 2026, Andrew confirmed the qualification work through release preparation complete for 0.4.6 on Windows, Linux Mint and Fedora. The earlier qualification lists below record what was outstanding at the time; they are not a new request to repeat those checks. Version 0.4.7 adds About, Wolf Update and release automation; see [RELEASE.md](RELEASE.md).
+
 ## Implementation
 
 - Tauri 2 desktop shell; existing React/TypeScript interface and typed API retained.
@@ -62,4 +66,4 @@ Local verification on 26 October 2026:
 - Windows: 9 Rust unit tests and all 5 loopback protocol tests pass. The production executable passes the native desktop workflows and accessibility checks in both themes, including Windows Credential Manager save/retrieve/delete and no plaintext password in settings. The NSIS installer builds successfully at approximately 3.60 MiB. Reports/screenshots are under `.test-artifacts/tauri/windows/`.
 - Local installers and the standalone Windows executable are under `release/tauri/`, with SHA-256 checksums in `release/tauri/SHA256SUMS.txt`. These are local preview builds, not a published release. CI now builds Tauri packages and runs native backend tests on Windows/Linux plus production desktop checks on Linux; no hosted run is claimed here.
 
-Still required before v1: Linux keyring-backed credential testing, broader server compatibility, manual accessibility, prolonged network interruptions, signing/clean-install/upgrade checks, and settled idle/startup footprint measurements on target desktops. Cancellation is checked between streamed chunks; a blocked network operation can take up to its configured timeout to return. Servers that cannot atomically replace a file report an error while retaining the original.
+Original migration qualification checklist, subsequently user-confirmed complete for 0.4.6: Linux keyring-backed credential testing, broader server compatibility, manual accessibility, prolonged network interruptions, signing/clean-install/upgrade checks, and settled idle/startup footprint measurements on target desktops. Cancellation is checked between streamed chunks; a blocked network operation can take up to its configured timeout to return. Servers that cannot atomically replace a file report an error while retaining the original.

@@ -1,6 +1,21 @@
 # Implementation progress
 
-Updated 27 October 2026. The working tree is a **0.4.6 Rust + Tauri development preview**, not a completed v1. The 0.3.0 verification below describes the Electron prototype. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+Updated 27 October 2026. The working tree is a **0.4.7 Rust + Tauri development preview**, not a completed v1. The 0.3.0 verification below describes the Electron prototype. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+
+## 0.4.7 Release preparation, About and Wolf Update
+
+- Andrew confirms the qualification work through release preparation complete for 0.4.6, including real use on Windows, Linux Mint and Fedora. This supersedes the outstanding field-qualification checklist below; historical automated evidence is retained as recorded.
+- Added an About panel with the existing Cosy FTP transfer logo, version, credits and the small A WOLF FORGE PROJECT paw-print signature. Added a native implementation of the notification-only Wolf Update policy used by Wolf Launcher and AMP: automatic daily and manual checks, preview-release discovery, persistent version dismissal and the fixed official project-page destination.
+- Prepared the Wolf Forge project write-up under On the Workbench with Coming soon downloads. It is not added to Out in the Wild.
+- Added a gated tagged-release workflow reusing native verification, with Windows NSIS and Linux DEB/RPM/AppImage artifacts, checksums and the website release event. No public release is created by this preparation. See [RELEASE.md](RELEASE.md) for setup and verification.
+
+### Local branding review
+
+- Corrected About to lead with the existing Cosy FTP transfer logo. The small `A WOLF FORGE PROJECT` paw-print footer matches the signatures in Wolf Launcher and AMP.
+- Replaced the website draft's illustrated file panels and text placeholders with real native FTPS workspace, editor and light-theme captures using disposable local demo servers. Corrected the project card to use Cosy FTP's logo.
+- The corrected Windows native desktop workflows and About accessibility pass in both themes. The live manual update check displays the expected not-yet-public message for the private repository. Website desktop/mobile layout, image loading, accessibility, workbench-only placement and all four disabled download controls pass.
+- All changes remain local and uncommitted at the user's request. Installers built before this branding correction do not represent the latest source.
+- Separate capture finding for follow-up: connecting to a populated SFTP subdirectory on Windows returned `Enter a single file or folder name`. The fixture and Windows path handling need investigation before release; the website captures use FTPS. No protocol code was changed as part of this branding correction.
 
 ## 0.4.6 Preserve the file-list position
 
@@ -108,10 +123,6 @@ The measurements above describe the Electron prototype. On 26 October 2026, Rust
 
 ## Next useful work
 
-1. Validate representative personal servers and real connection interruptions; extend the compatibility matrix.
-2. Test Linux keyring-backed password storage and normal desktop launches outside WSL/automation.
-3. Extend native Rust + Tauri field qualification and decide the footprint budget, using the tested transfer/editor behaviour as the specification.
-4. Qualify ownership/ACL behaviour, concurrent-writer limits, signed clean installs/upgrades, manual accessibility and long-running transfers.
-5. Reassess whether SSH keys or additional server capabilities are essential for the intended users, then complete release qualification.
+The user confirms the earlier qualification checklist complete for 0.4.6. Remaining work is release preparation: verify the new About/updater and automation changes, configure the website dispatch token, finish the licence/signing/distribution decisions and deliberately enable public downloads when ready. Optional additions such as SSH keys remain outside the agreed first-release scope.
 
 See [RELIABILITY.md](RELIABILITY.md) for recovery instructions and known protocol limits.

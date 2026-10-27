@@ -116,6 +116,22 @@ with tempfile.TemporaryDirectory(prefix="cosy-tauri-smoke-") as directory:
             assert initial["sessions"][0]["id"] == "local"
             assert js("return document.querySelector('.queue-toggle').getAttribute('aria-expanded')") == "true"
 
+            js("Array.from(document.querySelectorAll('.sidebar button')).find(el=>el.textContent.includes('About Cosy FTP')).click();")
+            assert js("return document.querySelector('.about-brand img').complete && document.querySelector('.about-brand img').naturalWidth > 0;")
+            assert EXPECTED_VERSION in js("return document.querySelector('.about-cosy').textContent;")
+            js("const box=document.querySelector('.about-updates input'); if(box.checked)box.click();")
+            assert js("return localStorage.getItem('cosy-auto-updates');") == "false"
+            if os.environ.get("COSY_SMOKE_UPDATE_CHECK") == "1":
+                js("Array.from(document.querySelectorAll('.about-updates button')).find(el=>el.textContent.includes('Check for updates')).click();")
+                for _ in range(150):
+                    update_status = js("return document.querySelector('.about-updates [role=status]').textContent;")
+                    if update_status and "Checking" not in update_status:
+                        break
+                    time.sleep(0.1)
+                assert any(text in update_status for text in ("newest applicable release", "is available", "Public update information is not available yet")), update_status
+                (ARTIFACTS / "update-status.txt").write_text(update_status, encoding="utf-8")
+            js("document.querySelector('[aria-label=\"Close dialog\"]').click();")
+
             listing = api("list", {"sessionId": "local", "path": str(source)})
             assert {item["name"] for item in listing["entries"]} == {"notes.txt", "binary.bin"}
             api("mkdir", {"location": {"sessionId": "local", "path": str(target)}, "name": "folder"})
@@ -352,11 +368,18 @@ with tempfile.TemporaryDirectory(prefix="cosy-tauri-smoke-") as directory:
                 assert not violations, json.dumps(violations, indent=2)
                 image = request("GET", prefix + "/screenshot")
                 (ARTIFACTS / f"{theme}.png").write_bytes(base64.b64decode(image))
+                js("Array.from(document.querySelectorAll('.sidebar button')).find(el=>el.textContent.includes('About Cosy FTP')).click();")
+                about_violations = js("const done=arguments[arguments.length-1]; axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa']}}).then(r=>done(r.violations))", asynchronous=True)
+                assert not about_violations, json.dumps(about_violations, indent=2)
+                accessibility[f"about_{theme}"] = about_violations
+                assert not js("return document.querySelector('.about-updates input').checked;")
+                (ARTIFACTS / f"about-{theme}.png").write_bytes(base64.b64decode(request("GET", prefix + "/screenshot")))
+                js("document.querySelector('[aria-label=\"Close dialog\"]').click();")
 
             request("POST", prefix + "/window/rect", {"width": 980, "height": 680})
             time.sleep(0.25)
             (ARTIFACTS / "compact.png").write_bytes(base64.b64decode(request("GET", prefix + "/screenshot")))
-            report = {"version": initial["version"], "buildId": initial["buildId"], "canStorePasswords": initial["canStorePasswords"], "accessibility": accessibility, "checks": ["native startup", "expanded queue default", "local browse/mkdir/rename", "unsafe path rejection",
+            report = {"version": initial["version"], "buildId": initial["buildId"], "canStorePasswords": initial["canStorePasswords"], "accessibility": accessibility, "checks": ["native startup", "About version, loaded Cosy FTP logo and Wolf Forge project signature", "automatic update preference persists across About reopening", "About accessibility in both themes", "expanded queue default", "local browse/mkdir/rename", "unsafe path rejection",
                       "queued binary transfer", "draft recovery", "visible Edit action opens and saves JSON above 2 MiB", "hide editor retains working copies", "closing active/background editor tabs preserves remaining tabs", "conflict refusal", "stale review refusal", "review without save", "explicit save",
                       "session-only profiles", "pinned SFTP connection", "connected trust removal refusal", "remote editor save", "session-preserving reconnect", "pinned self-signed FTPS reads and queued uploads with required TLS 1.3 session resumption", "connected FTPS trust removal refusal", "new palette and logo screenshots", "remote scroll retained after refresh, mkdir, rename and editor save", "new directory starts at top"]}
             if initial["canStorePasswords"]:

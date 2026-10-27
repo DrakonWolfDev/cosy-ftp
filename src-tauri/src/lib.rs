@@ -10,6 +10,7 @@ mod storage;
 mod tests;
 mod tls_errors;
 mod transfers;
+mod wolf_update;
 
 use anyhow::{bail, ensure, Context, Result};
 use model::*;
@@ -79,6 +80,12 @@ impl Runtime {
             return self.editor_command(app, operation, input);
         }
         match operation {
+            "check-updates" => self.check_updates(input),
+            "dismiss-update" => self.dismiss_update(input),
+            "open-project-page" => {
+                open::that_detached(wolf_update::PROJECT_URL)?;
+                Ok(Value::Null)
+            }
             "initialise" => Ok(self.initialise()),
             "choose-folder" => Ok(match app.dialog().file().blocking_pick_folder() {
                 Some(p) => json!(p

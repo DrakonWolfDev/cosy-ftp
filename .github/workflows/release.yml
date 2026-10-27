@@ -1,0 +1,66 @@
+name: Release Cosy FTP
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Check release readiness and matching versions
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_APPROVED: ${{ vars.COSY_FTP_RELEASE_APPROVED }}
+          SITE_TOKEN: ${{ secrets.WOLF_FORGE_SITE_TOKEN }}
+        run: node scripts/prepare-release.cjs --preflight
+      - name: Require public release visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')" = false || {
+            echo 'Public downloads and Wolf Update require a public repository. Visibility must be decided before release.' >&2
+            exit 1
+          }
+
+  packages:
+    needs: preflight
+    uses: ./.github/workflows/verify.yml
+
+  publish:
+    needs: [preflight, packages]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: cosy-ftp-tauri-*
+          path: artifacts
+      - name: Verify complete package set and generate checksums
+        run: node scripts/prepare-release.cjs artifacts release
+      - name: Publish GitHub preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" release/* --verify-tag --prerelease --generate-notes --title "Cosy FTP ${RELEASE_TAG#v}"
+      - name: Update Wolf Forge downloads after publication
+        env:
+          GH_TOKEN: ${{ secrets.WOLF_FORGE_SITE_TOKEN }}
+        run: gh api --method POST repos/DrakonWolfDev/wolf-forge-static/dispatches --input release-event.json

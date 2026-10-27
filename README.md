@@ -54,7 +54,7 @@ python -m pip install -r tests/requirements.txt
 
 Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tests use temporary files and loopback-only servers with disposable credentials. The old TypeScript service tests remain available as `npm run test:legacy`; their results establish prototype behaviour, not Rust parity.
 
-`package` and `dist` create Windows NSIS or Linux AppImage/deb packages under `src-tauri/target/release/bundle/` on the matching operating system. Preview packages are unsigned. Old files under `release/` are Electron builds and are not refreshed by Tauri commands.
+`package` and `dist` create Windows NSIS or Linux AppImage/deb/rpm packages under `src-tauri/target/release/bundle/` on the matching operating system. Preview packages are unsigned. Old files under `release/` are Electron builds and are not refreshed by Tauri commands.
 
 ## Project documents
 
@@ -65,4 +65,10 @@ Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tes
 - [Reliability limits and recovery](docs/RELIABILITY.md)
 - [Original concept](PROJECT_IDEAS.md)
 
-The 0.4.0 working tree migrates the application to Rust + Tauri, retaining React/TypeScript. The Electron implementation remains as a reference for parity testing. Native qualification and footprint measurements are tracked in the [migration notes](docs/TAURI_MIGRATION.md).
+The working tree uses Rust + Tauri with a React/TypeScript interface. The Electron implementation remains as a reference for parity testing. Native qualification and footprint measurements are tracked in the [migration notes](docs/TAURI_MIGRATION.md).
+
+## About and updates
+
+Open **About Cosy FTP** in the sidebar for the Wolf Forge project identity, app version and Wolf Update controls. Automatic checks run at most once a day and can be disabled. Manual checks include published previews. Updates open the official project page for you to download and install; the app does not install updates itself.
+
+See [release preparation](docs/RELEASE.md) for tagged GitHub Actions builds and website download integration. Public downloads remain Coming soon until release approval is enabled.

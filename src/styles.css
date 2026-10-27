@@ -1494,3 +1494,75 @@ h2 {
     padding-bottom: 20px;
   }
 }
+/* Wolf Forge identity and notification-only update checks. */
+.about-brand {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.about-brand img {
+  object-fit: contain;
+  border-radius: 18px;
+  background: #14202d;
+}
+.about-brand h3 {
+  font-size: 30px;
+  margin: 4px 0;
+}
+.about-forge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  margin: 24px 0 0;
+}
+.about-eyebrow {
+  letter-spacing: 0.14em;
+  font-size: 11px;
+}
+.about-cosy > p,
+.about-updates p {
+  line-height: 1.6;
+}
+.about-updates {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.about-updates label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.update-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+  font: inherit;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.wolf-update-banner {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  max-width: min(480px, calc(100vw - 48px));
+  padding: 18px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #0005;
+}
+.wolf-update-banner > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}

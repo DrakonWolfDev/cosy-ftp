@@ -9,7 +9,7 @@ async function main() {
   async function visit(directory) {
     for (const item of await fsp.readdir(directory, { withFileTypes: true })) {
       if (item.isDirectory()) await visit(path.join(directory, item.name));
-      if (item.isFile() && /\.(exe|AppImage|deb)$/.test(item.name))
+      if (item.isFile() && /\.(exe|AppImage|deb|rpm)$/.test(item.name))
         artifacts.push(path.join(directory, item.name));
     }
   }

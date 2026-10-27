@@ -44,6 +44,6 @@ On first launch, public profiles, SSH fingerprints and recovery copies are impor
 
 SSH first-use trust requires a native confirmation with the SHA-256 fingerprint; subsequent mismatches are refused. **Trusted SSH servers** lists those fingerprints. If an administrator legitimately rotates a key, verify the replacement independently, disconnect the server's open sessions, then use **Forget trust** and confirm the removal. The next connection requires a new fingerprint confirmation. Forgetting a key preserves saved profiles and encrypted credentials; cancelling the confirmation preserves the fingerprint. FTPS certificate pins are managed separately under Trusted FTPS certificates; they never grant SSH trust. Plain FTP visibly warns that passwords and files are unencrypted.
 
-## Release validation still required
+## Release validation
 
-Signed clean installations, more server implementations, large-tree and long-running transfer stress tests, Linux desktop/keyring variations, accessibility review, package footprint and idle-memory measurement. Loopback test success does not cover every real-world server, proxy or network condition.
+On 27 October 2026, Andrew confirmed the 0.4.6 qualification checklist complete through release preparation, including Windows, Linux Mint and Fedora use. This is user-reported field evidence, separate from the automated loopback reports. The new 0.4.7 About/updater and release automation changes are verified separately; release setup is tracked in [RELEASE.md](RELEASE.md). The protocol and metadata limits described above continue to apply.

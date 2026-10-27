@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { BrandMark } from './BrandMark';
+import { WolfUpdate } from './WolfUpdate';
 import { selectionRange, sortEntries, type SortField, type SortDirection } from './file-list';
 import {
   ArrowDown,
@@ -1885,6 +1886,14 @@ export default function App() {
           )}
         </div>
         <div className="sidebar-bottom">
+          <WolfUpdate
+            version={initial.version}
+            dialog={(children, close) => (
+              <Modal title="About Cosy FTP" onClose={close}>
+                {children}
+              </Modal>
+            )}
+          />
           <div className="comfort-note">
             <ShieldCheck size={17} />
             <p>
