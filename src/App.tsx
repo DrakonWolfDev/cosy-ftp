@@ -1886,14 +1886,14 @@ export default function App() {
           )}
         </div>
         <div className="sidebar-bottom">
-          <WolfUpdate
-            version={initial.version}
-            dialog={(children, close) => (
-              <Modal title="About Cosy FTP" onClose={close}>
-                {children}
-              </Modal>
-            )}
-          />
+          <button onClick={() => setShowTrustedServers(true)}>
+            <ShieldCheck size={16} />
+            Trusted SSH servers
+          </button>
+          <button onClick={() => setShowTrustedCertificates(true)}>
+            <ShieldCheck size={16} />
+            Trusted FTPS certificates
+          </button>
           <div className="comfort-note">
             <ShieldCheck size={17} />
             <p>
@@ -1912,18 +1912,14 @@ export default function App() {
             <Settings2 size={16} />
             Appearance
           </button>
-          <button onClick={() => setShowTrustedServers(true)}>
-            <ShieldCheck size={16} />
-            Trusted SSH servers
-          </button>
-          <button onClick={() => setShowTrustedCertificates(true)}>
-            <ShieldCheck size={16} />
-            Trusted FTPS certificates
-          </button>
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            {theme === 'dark' ? 'Warm light theme' : 'Muted dark theme'}
-          </button>
+          <WolfUpdate
+            version={initial.version}
+            dialog={(children, close) => (
+              <Modal title="About Cosy FTP" onClose={close}>
+                {children}
+              </Modal>
+            )}
+          />
           <div className="sidebar-version">
             COSY FTP <span>v{initial.version} · preview</span>
           </div>
