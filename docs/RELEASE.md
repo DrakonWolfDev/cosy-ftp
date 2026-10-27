@@ -25,6 +25,8 @@ Before publishing a version:
 5. Push the matching `vX.Y.Z` tag. The workflow validates readiness/version agreement, runs the Windows/Linux tests and builds, requires exactly one of each of the four package formats, and publishes a GitHub prerelease with generated notes and SHA-256 checksums.
 6. Only after publication succeeds, the workflow sends a `cosy_ftp` website event with the exact artifact names. The website validates the contract and checks that files exist before committing its manifest update. If dispatch fails after publication, fix the token and resend the event; do not recreate the release.
 
+The release contract additionally requires Windows/Linux crate-and-project source archives, the exact Linux system-library source archive, native inventories and full native/system notices. These supporting assets are published alongside the installers and covered by SHA-256 checksums. See THIRD_PARTY.md for generation and replacement/rebuild instructions.
+
 Public artifact names: `cosy-ftp-X.Y.Z-windows.exe`, `cosy-ftp-X.Y.Z.deb`, `cosy-ftp-X.Y.Z.rpm`, `cosy-ftp-X.Y.Z.AppImage`.
 
-The website page remains in On the Workbench until separately moved by an explicit editorial change. No release event moves it to Out in the Wild. Its initial manifest is unavailable and its download controls are disabled. No tag or public binary release is part of this preparation.
+The website page remains in On the Workbench until separately moved by an explicit editorial change. No release event moves it to Out in the Wild. Its initial manifest is unavailable and its download controls are disabled. Version 0.4.8 is the first public binary release being prepared under this contract, with owner authorization to publish once the workflow passes.

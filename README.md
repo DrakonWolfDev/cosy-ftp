@@ -10,7 +10,7 @@ Browse local folders or independent SFTP, explicit FTPS and FTP sessions in eith
 
 ## Project status
 
-The latest working source is the 0.4.7 development preview. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; verification of subsequent changes is recorded separately in [the progress notes](docs/PROGRESS.md). Public downloads are coming soon on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
+The latest working source is the 0.4.8 development preview. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; verification of subsequent changes is recorded separately in [the progress notes](docs/PROGRESS.md). Published previews and matching sources are available from GitHub Releases; platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
 
 ## Licence and contributions
 
@@ -25,7 +25,8 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` (or `npm start`) opens the Tauri desktop application with the Vite development server. `npm run build` compiles the native application without installers; `npm run dist` builds distribution packages. This is a desktop app, not a browser-hosted website.
+`npm run dev` (or `npm start`) opens the Tauri desktop application with the Vite development server. `npm run build` compiles the native application without installers; `python scripts/native-notices.py
+npm run dist` builds distribution packages. This is a desktop app, not a browser-hosted website.
 
 On first launch, public connection profiles, pinned SSH fingerprints and editor recovery copies are imported from the Electron preview when available. The originals are retained. Remembered Electron passwords must be entered again; Tauri stores newly remembered passwords in the operating system credential store. `COSY_USER_DATA` selects an isolated data directory and disables automatic import for testing.
 
@@ -52,9 +53,9 @@ Existing files are protected by default. **Replace existing** requires confirmat
 ## Check and package
 
 ```sh
+python scripts/native-notices.py
 npm run check
 npm run test:protocol
-npm run package
 npm run dist
 ```
 
@@ -84,4 +85,4 @@ The working tree uses Rust + Tauri with a React/TypeScript interface. The Electr
 
 Open **About Cosy FTP** in the sidebar for the Wolf Forge project identity, app version and Wolf Update controls. Automatic checks run at most once a day and can be disabled. Manual checks include published previews. Updates open the official project page for you to download and install; the app does not install updates itself.
 
-See [release preparation](docs/RELEASE.md) for tagged GitHub Actions builds and website download integration. Public downloads remain Coming soon until release approval is enabled.
+See [release preparation](docs/RELEASE.md) for tagged GitHub Actions builds and website download integration. Release publication requires passing native checks, notices and corresponding-source archives; the website is updated only after all assets exist.

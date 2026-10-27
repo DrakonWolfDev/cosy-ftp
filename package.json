@@ -1,6 +1,6 @@
 {
   "name": "cosy-ftp",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "private": true,
   "description": "A calm two-pane file transfer client for Windows and Linux",
   "homepage": "https://github.com/DrakonWolfDev/cosy-ftp",

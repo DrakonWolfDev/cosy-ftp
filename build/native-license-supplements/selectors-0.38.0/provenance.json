@@ -1,0 +1,8 @@
+{
+  "crate": "selectors",
+  "revision": "572ecba2d1600e7c3d490586692a209faf703baa",
+  "urls": [
+    "https://www.mozilla.org/media/MPL/2.0/index.txt"
+  ],
+  "basis": "MPL-2.0 notice in selectors/lib.rs at this revision"
+}

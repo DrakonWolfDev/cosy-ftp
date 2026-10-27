@@ -1,0 +1,9 @@
+{
+  "crate": "suppaftp",
+  "version": "12.2.1",
+  "revision": "18e0a88b0047dcffbf778c59ed5900b7e19251db",
+  "urls": [
+    "https://raw.githubusercontent.com/veeso/suppaftp/18e0a88b0047dcffbf778c59ed5900b7e19251db/LICENSE-APACHE",
+    "https://raw.githubusercontent.com/veeso/suppaftp/18e0a88b0047dcffbf778c59ed5900b7e19251db/LICENSE-MIT"
+  ]
+}

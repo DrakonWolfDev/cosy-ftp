@@ -35,9 +35,22 @@ function prepare(input, output, eventFile = 'release-event.json') {
     const name = `cosy-ftp-${version}${platform === 'windows' ? '-windows' : ''}.${extension}`;
     return { platform, file: matches[0], name };
   });
+  const supportingNames = [
+    `cosy-ftp-${version}-windows-sources.tar.gz`,
+    `cosy-ftp-${version}-linux-sources.tar.gz`,
+    `cosy-ftp-${version}-linux-system-sources.tar.gz`,
+    'NATIVE_NOTICES_windows.txt', 'NATIVE_NOTICES_linux.txt', 'LINUX_SYSTEM_NOTICES.txt',
+    'native-inventory-windows.json', 'native-inventory-linux.json', 'linux-payload-inventory.json',
+  ];
+  const supporting = supportingNames.map((name) => {
+    const matches = files.filter((file) => path.basename(file) === name);
+    if (matches.length !== 1 || fs.statSync(matches[0]).size === 0)
+      throw new Error(`Expected exactly one nonempty release source/notice asset: ${name}`);
+    return { file: matches[0], name };
+  });
   fs.mkdirSync(output, { recursive: true });
   const sums = [];
-  for (const { file, name } of selected) {
+  for (const { file, name } of [...selected, ...supporting]) {
     const bytes = fs.readFileSync(file);
     fs.writeFileSync(path.join(output, name), bytes);
     sums.push(`${createHash('sha256').update(bytes).digest('hex')}  ${name}`);

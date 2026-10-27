@@ -32,3 +32,7 @@ Updated 27 October 2026. The repository is now public following owner approval a
 Keep `COSY_FTP_RELEASE_APPROVED` unset. Complete native package licence/notice and corresponding-source delivery review for the exact shipped artifacts, then verify the configured `WOLF_FORGE_SITE_TOKEN` can send the website release event. Follow [RELEASE.md](RELEASE.md). Installers built before the latest source changes are not qualified by the source-readiness checks.
 
 Hosted CI status is separate from the local evidence above. Confirm the checks attached to the final pushed commit before tagging any release. No version tag is created by this preparation.
+
+## 0.4.8 binary release preparation
+
+The owner authorized completing distribution preparation and publishing 0.4.8. Both lockfiles and native/package versions are updated together. Native notices and source archives are generated from each target?s locked dependency resolution, with exact-revision upstream notice supplements where crates omit their licence files. Windows WebView2 SDK loader notices are included. Linux distribution preparation inventories actual AppImage ELF payloads, verifies build IDs against installed packages and archives the corresponding exact Ubuntu source packages plus runtime/launcher sources. The publication contract refuses missing source/notice assets. Release approval is enabled only for the verified publication attempt. Hosted verification and website handoff must still be confirmed for the release commit.

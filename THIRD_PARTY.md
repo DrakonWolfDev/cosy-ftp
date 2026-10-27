@@ -1,15 +1,29 @@
 # Third-party components
 
-Cosy FTP's original project source is licensed AGPL-3.0-only. Dependencies keep their own licences; the project licence does not relicense them.
+Cosy FTP's original source is licensed AGPL-3.0-only. Dependencies retain their own licences; the project licence does not relicense them.
 
-## Frontend
+## Notices and corresponding sources
 
-`node scripts/third-party-notices.cjs` regenerates `build/THIRD_PARTY_NOTICES.txt` from the installed, locked React, React DOM, Lucide and Tauri API packages and their JavaScript dependencies. The file includes upstream licence and notice texts. Run `npm ci` first. The retained Electron build uses `--legacy` to include its different JavaScript backend dependencies.
+Every public release at https://github.com/DrakonWolfDev/cosy-ftp/releases includes the Windows installer, Linux packages, SHA-256 checksums, native inventories, full dependency notices and matching source archives. Choose the release matching the installed app version.
 
-## Native runtime and packages
+- `NATIVE_THIRD_PARTY_NOTICES.txt` is installed with the app. Platform-specific copies are also published as `NATIVE_NOTICES_windows.txt` and `NATIVE_NOTICES_linux.txt`.
+- `THIRD_PARTY_NOTICES.txt` contains the frontend JavaScript notices generated from the locked packages.
+- `cosy-ftp-VERSION-windows-sources.tar.gz` and `cosy-ftp-VERSION-linux-sources.tar.gz` contain the matching project/build inputs, frontend dependencies and exact Cargo registry source archives, including nested OpenSSL, libssh2 and other native sources. Additional upstream licence files missing from published crates are preserved with their exact-revision provenance under `build/native-license-supplements`.
+- `LINUX_SYSTEM_NOTICES.txt` contains copyright notices and licence texts for the libraries bundled inside the AppImage. `linux-payload-inventory.json` records their package versions and ELF build identities. DEB and RPM use operating-system libraries; the AppImage redistributes its listed libraries.
+- `cosy-ftp-VERSION-linux-system-sources.tar.gz` contains the exact Ubuntu source packages (`.dsc`, original source and Debian patches/build recipes), AppImage runtime and launcher source revisions, generated launcher scripts and notices. The runtime's submodule sources are included.
 
-`src-tauri/Cargo.lock` pins the Rust dependency graph. Native components include Tauri/Wry and their platform webview integrations, libssh2, OpenSSL, FTP/TLS transports and credential-store integrations. Platform packages can also redistribute native shared libraries. The frontend notice file is not a complete native distribution notice set.
+MPL-covered dependency source is included in the platform archives with its original headers and licence. LGPL libraries in the AppImage are dynamically loaded. You may modify them and reverse engineer the combined work to debug those modifications as permitted by their licences. Extract with `--appimage-extract`, replace the relevant libraries under `squashfs-root/usr/lib`, and run `squashfs-root/AppRun`; there is no signature or installer restriction on replacement. The supplied project sources can also be rebuilt against replacement libraries.
 
-Before publishing binary downloads, inventory the exact Windows, DEB, RPM and AppImage contents and collect the required licence/notice texts for the actual redistributed versions. Account for statically bundled components and any system libraries included inside AppImage. Where a component requires corresponding source, replacement/relinking materials or other delivery materials, provide those alongside the release and document how they were produced. Keep the matching Cosy FTP source commit and reproducible build instructions available with the binaries.
+## Rebuilding
 
-This native distribution review remains a binary-release task. Publishing this source repository does not certify the existing local installers for public redistribution. Keep `COSY_FTP_RELEASE_APPROVED` unset until the exact release artifacts and their source/notice delivery are ready.
+See README.md for native prerequisites and npm/Cargo commands. Source archives include both lockfiles. Cargo `.crate` files are gzip-compressed tar archives containing the original source; extract them into a vendor tree with the supplied Cargo checksum files and configure source replacement as described in SOURCE-README.txt for offline native builds. Native distribution archives include their own source README.
+
+For an Ubuntu source package, use `dpkg-source -x NAME.dsc`, install its declared build dependencies and run `dpkg-buildpackage` in the unpacked source. Each source package includes its Debian packaging and patches. Runtime sources include their upstream build scripts and submodules.
+
+## Release checks
+
+`python scripts/native-notices.py` must run before native packaging, after npm ci and Rust setup. It derives each target's dependency inventory from locked Cargo metadata and fails if licence text or a registry source archive is missing. Then package with `npm run dist`.
+
+On the Ubuntu build host, enable deb-src before installing prerequisites. After packaging, run `python scripts/linux-distribution.py`. It traces bundled ELF files to installed packages, compares ELF build IDs, downloads exact matching source versions and checks their source archives through dpkg-source. Unknown libraries, changed payload identities, missing notices or unavailable sources stop publication. The release contract requires all supporting assets before it creates a website event.
+
+The retained Electron build is not part of these native releases; its JavaScript notices use `node scripts/third-party-notices.cjs --legacy`.

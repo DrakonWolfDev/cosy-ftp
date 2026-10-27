@@ -17,8 +17,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    # Fresh native builds and slow package mirrors can exceed 45 minutes.
-    timeout-minutes: 60
+    # Includes exact source-package downloads and archive validation for distribution.
+    timeout-minutes: 90
     env:
       COSY_PYTHON: python
     steps:
@@ -34,7 +34,10 @@ jobs:
         run: rustup update stable --no-self-update
       - name: Linux desktop prerequisites
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config webkit2gtk-driver xvfb rpm
+        run: |
+          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt-get update -qq
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config webkit2gtk-driver xvfb rpm dpkg-dev binutils
       - name: Windows SSH build prerequisites
         if: runner.os == 'Windows'
         run: |
@@ -42,6 +45,8 @@ jobs:
           'PERL=C:\Strawberry\perl\bin\perl.exe' | Out-File -FilePath $env:GITHUB_ENV -Append
       - run: npm ci
       - run: python -m pip install -r tests/requirements.txt
+      - name: Native dependency notices and matching sources
+        run: python scripts/native-notices.py
       - run: npm run check
       - name: Release artifact and approval contract
         run: node --test tests/release.test.cjs
@@ -50,6 +55,9 @@ jobs:
         run: npm run dist
       - name: Package checksums
         run: node scripts/checksums.cjs
+      - name: Inventory Linux payload and collect exact system sources
+        if: runner.os == 'Linux'
+        run: python scripts/linux-distribution.py
       - name: Native Linux desktop workflows
         if: runner.os == 'Linux'
         # Xvfb has no GPU; keep WebKit away from accelerated compositing.
@@ -69,6 +77,8 @@ jobs:
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
             src-tauri/target/release/bundle/SHA256SUMS.txt
+            .test-artifacts/distribution/*
+          include-hidden-files: true
           retention-days: 7
           if-no-files-found: error
       - uses: actions/upload-artifact@v7

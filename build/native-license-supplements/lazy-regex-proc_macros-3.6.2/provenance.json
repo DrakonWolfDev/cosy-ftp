@@ -1,0 +1,8 @@
+{
+  "crate": "lazy-regex-proc_macros",
+  "version": "3.6.2",
+  "revision": "3263b3380ef7ca68f134340a44da87b34311edb8",
+  "urls": [
+    "https://raw.githubusercontent.com/Canop/lazy-regex/3263b3380ef7ca68f134340a44da87b34311edb8/LICENSE"
+  ]
+}

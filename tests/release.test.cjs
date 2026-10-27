@@ -29,6 +29,14 @@ test('only a complete, unambiguous package set produces the website event and va
     assert.throws(() => prepare(input, output, event), /rpm/);
     assert.equal(fs.existsSync(event), false);
     fs.writeFileSync(path.join(input, 'original.rpm'), 'rpm');
+    assert.throws(() => prepare(input, output, event), /source\/notice asset/);
+    for (const name of [
+      `cosy-ftp-${version}-windows-sources.tar.gz`,
+      `cosy-ftp-${version}-linux-sources.tar.gz`,
+      `cosy-ftp-${version}-linux-system-sources.tar.gz`,
+      'NATIVE_NOTICES_windows.txt', 'NATIVE_NOTICES_linux.txt', 'LINUX_SYSTEM_NOTICES.txt',
+      'native-inventory-windows.json', 'native-inventory-linux.json', 'linux-payload-inventory.json',
+    ]) fs.writeFileSync(path.join(input, name), name);
     prepare(input, output, event);
     const payload = JSON.parse(fs.readFileSync(event)).client_payload;
     assert.equal(payload.project, 'cosy_ftp');
@@ -45,7 +53,7 @@ test('only a complete, unambiguous package set produces the website event and va
           .update(fs.readFileSync(path.join(output, filename)))
           .digest('hex'),
       );
-      assert.ok(Object.values(payload.artifacts).includes(filename));
+      assert.ok(fs.existsSync(path.join(output, filename)));
     }
     fs.writeFileSync(path.join(input, 'duplicate.exe'), 'duplicate');
     assert.throws(() => prepare(input, output, event), /exactly one exe/);
