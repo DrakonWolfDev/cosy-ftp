@@ -51,6 +51,9 @@ jobs:
       - name: Release artifact and approval contract
         run: node --test tests/release.test.cjs
       - run: npm run test:protocol
+      - name: Optimized GLib security regression
+        if: runner.os == 'Linux'
+        run: cargo test --manifest-path src-tauri/Cargo.toml --release --test glib_variant
       - name: Build native preview packages
         run: npm run dist
       - name: Package checksums

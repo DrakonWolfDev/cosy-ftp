@@ -46,3 +46,10 @@ open = "5"
 
 [target.'cfg(windows)'.dependencies]
 ssh2 = { version = "0.9", features = ["openssl-on-win32", "vendored-openssl"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+glib = "0.18.5"
+
+[patch.crates-io]
+# Backport gtk-rs-core#1343 while GTK3/Tauri still require glib 0.18.
+glib = { path = "vendor/glib" }

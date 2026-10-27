@@ -22,7 +22,7 @@ fn main() {
     let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let root = manifest.parent().unwrap();
     let mut files = Vec::new();
-    for directory in ["src-tauri/src", "src", "shared", "dist"] {
+    for directory in ["src-tauri/src", "src-tauri/vendor", "src", "shared", "dist"] {
         println!("cargo:rerun-if-changed={}", root.join(directory).display());
         collect(&root.join(directory), &mut files);
     }

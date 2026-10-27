@@ -21,7 +21,7 @@ ARTIFACTS.mkdir(parents=True, exist_ok=True)
 APPLICATION = Path(sys.argv[1]).resolve()
 EXPECTED_VERSION = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
 build_inputs = []
-for directory in ("src-tauri/src", "src", "shared", "dist"):
+for directory in ("src-tauri/src", "src-tauri/vendor", "src", "shared", "dist"):
     build_inputs += [file for file in (ROOT / directory).rglob("*") if file.is_file()]
 build_inputs += [ROOT / file for file in ("src-tauri/build.rs", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "src-tauri/tauri.windows.conf.json", "src-tauri/capabilities/main.json", "package.json", "package-lock.json", "index.html", "vite.config.ts")]
 build_hash = hashlib.sha256()

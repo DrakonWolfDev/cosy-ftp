@@ -44,7 +44,7 @@ def generate():
             if file.is_file():
                 tar.add(file, arcname=f"cosy-ftp/{name}", recursive=False)
         for package in sorted(metadata["packages"], key=lambda p: (p["name"], p["version"])):
-            if not package.get("source"):
+            if package["name"] == "cosy-ftp":
                 continue
             directory = Path(package["manifest_path"]).parent
             label = f"{package['name']}-{package['version']}"
@@ -60,18 +60,31 @@ def generate():
                                file.read_text(encoding="utf-8", errors="replace"))
             # Registry archives preserve the exact shipped source bytes/checksums and
             # avoid rewriting tens of thousands of files on Windows.
-            crate = directory.parents[2] / "cache" / directory.parent.name / f"{label}.crate"
-            if not crate.is_file():
-                raise RuntimeError(f"Missing locked registry source archive: {crate}")
-            checksum = hashlib.sha256(crate.read_bytes()).hexdigest()
-            if checksum != locked[(package["name"], package["version"])]:
-                raise RuntimeError(f"Registry source checksum does not match Cargo.lock: {label}")
-            tar.add(crate, arcname=f"cargo-sources/{crate.name}", recursive=False)
-            tar.add(directory / ".cargo-checksum.json", arcname=f"cargo-checksums/{label}.json", recursive=False)
+            if package.get("source"):
+                crate = directory.parents[2] / "cache" / directory.parent.name / f"{label}.crate"
+                if not crate.is_file():
+                    raise RuntimeError(f"Missing locked registry source archive: {crate}")
+                checksum = hashlib.sha256(crate.read_bytes()).hexdigest()
+                if checksum != locked[(package["name"], package["version"])]:
+                    raise RuntimeError(f"Registry source checksum does not match Cargo.lock: {label}")
+                tar.add(crate, arcname=f"cargo-sources/{crate.name}", recursive=False)
+                # Recent Cargo versions no longer leave this vendor metadata in
+                # the registry checkout. Derive it from verified original bytes.
+                with tarfile.open(crate, "r:gz") as source:
+                    hashes = {member.name.partition("/")[2]: hashlib.sha256(source.extractfile(member).read()).hexdigest()
+                              for member in source.getmembers() if member.isfile()}
+                data = json.dumps({"files": hashes, "package": checksum}, sort_keys=True).encode()
+                info = tarfile.TarInfo(f"cargo-checksums/{label}.json")
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+            else:
+                # Security backports are path dependencies with modified source.
+                tar.add(directory, arcname=f"patched-sources/{label}")
+                checksum = None
             if extra:
                 tar.add(supplement, arcname=f"upstream-notices/{label}")
             records.append({"name": package["name"], "version": package["version"],
-                            "license": package.get("license"), "source": package["source"],
+                            "license": package.get("license"), "source": package.get("source") or "vendored security backport",
                             "repository": package.get("repository"), "source_sha256": checksum})
         # Preserve frontend dependency sources too, without shipping build-tool binaries.
         for name in ("react", "react-dom", "scheduler", "lucide-react", "@tauri-apps/api"):

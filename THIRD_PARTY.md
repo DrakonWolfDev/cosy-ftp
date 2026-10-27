@@ -27,3 +27,7 @@ For an Ubuntu source package, use `dpkg-source -x NAME.dsc`, install its declare
 On the Ubuntu build host, enable deb-src before installing prerequisites. After packaging, run `python scripts/linux-distribution.py`. It traces bundled ELF files to installed packages, compares ELF build IDs, downloads exact matching source versions and checks their source archives through dpkg-source. Unknown libraries, changed payload identities, missing notices or unavailable sources stop publication. The release contract requires all supporting assets before it creates a website event.
 
 The retained Electron build is not part of these native releases; its JavaScript notices use `node scripts/third-party-notices.cjs --legacy`.
+
+## GLib security backport
+
+The GLib 0.18.5 Rust binding is vendored with the exact two-line upstream fix for RUSTSEC-2024-0429 (gtk-rs-core#1343). Its original licence and a COSY-PATCH.md provenance record are retained. The modified source is included in the repository and platform archives; an optimized regression test runs in Linux CI. Other registry dependencies are supplied unmodified and checked against Cargo.lock source archive hashes.
