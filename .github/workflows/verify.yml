@@ -17,7 +17,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # Fresh native builds and slow package mirrors can exceed 45 minutes.
+    timeout-minutes: 60
     env:
       COSY_PYTHON: python
     steps:
