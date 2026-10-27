@@ -161,7 +161,9 @@ def main():
         with ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(download, exact_sources))
         # Record/copy launcher and runtime source recursively at their actual revisions.
-        runtime = output(str(image), "--appimage-version")
+        # The AppImage runtime reports its version on stderr.
+        runtime = subprocess.check_output([str(image), "--appimage-version"], text=True,
+                                          stderr=subprocess.STDOUT).strip()
         revision = re.search(r"type2-runtime/commit/([a-f0-9]+)", runtime)
         if not revision:
             raise RuntimeError(f"Unknown AppImage runtime: {runtime}")
