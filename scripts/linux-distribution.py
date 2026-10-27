@@ -13,10 +13,24 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from urllib.request import urlopen
+import time
+from urllib.request import urlopen as urllib_open
 from urllib.parse import urlencode, urlparse, unquote
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def urlopen(url, timeout=120):
+    # Source mirrors occasionally return 502/503. Retry transport failures only;
+    # validation failures below remain fatal.
+    for attempt in range(4):
+        try:
+            return urllib_open(url, timeout=timeout)
+        except OSError:
+            if attempt == 3:
+                raise
+            print(f"Retrying source download ({attempt + 1}/3): {url}", flush=True)
+            time.sleep(2 ** (attempt + 1))
 
 
 def output(*args, **kwargs):
@@ -55,23 +69,30 @@ def main():
             if relative == "AppRun.wrapped":
                 records.append({"file": relative, "source": "AppImageKit", "sha256": hashlib.sha256(file.read_bytes()).hexdigest()})
                 continue
-            matches = output("dpkg-query", "-S", f"*/{file.name}").splitlines()
-            owners = set()
-            for match in matches:
-                owner, _, installed_path = match.partition(": ")
-                if Path(installed_path).is_file():
-                    owners.add(owner)
-            if len(owners) != 1:
-                raise RuntimeError(f"Ambiguous or missing package owner for {relative}: {owners}")
-            owner = owners.pop()
-            installed = next(Path(line.partition(": ")[2]) for line in matches
-                             if line.partition(": ")[0] == owner and Path(line.partition(": ")[2]).is_file())
             def build_id(path):
                 match = re.search(r"Build ID: ([a-f0-9]+)", output("readelf", "-n", str(path)))
                 if not match:
                     raise RuntimeError(f"ELF has no build ID: {path}")
                 return match[1]
             identity = build_id(file) if is_elf else hashlib.sha256(file.read_bytes()).hexdigest()
+            matches = output("dpkg-query", "-S", f"*/{file.name}").splitlines()
+            owners = set()
+            installed_matches = {}
+            for match in matches:
+                owner, _, installed_path = match.partition(": ")
+                if Path(installed_path).is_file():
+                    candidate = Path(installed_path)
+                    with candidate.open("rb") as stream:
+                        if is_elf and stream.read(4) != b"\x7fELF":
+                            continue
+                    candidate_identity = build_id(candidate) if is_elf else hashlib.sha256(candidate.read_bytes()).hexdigest()
+                    if candidate_identity == identity:
+                        owners.add(owner)
+                        installed_matches[owner] = candidate
+            if len(owners) != 1:
+                raise RuntimeError(f"Ambiguous or missing package owner for {relative}: {owners}")
+            owner = owners.pop()
+            installed = installed_matches[owner]
             installed_identity = build_id(installed) if is_elf else hashlib.sha256(installed.read_bytes()).hexdigest()
             if identity != installed_identity:
                 raise RuntimeError(f"Installed source version cannot be used for changed payload: {relative}")
@@ -98,9 +119,15 @@ def main():
             source, source_version = item
             directory = source_root / source
             directory.mkdir()
+            key = hashlib.sha256(f"{source}={source_version}".encode()).hexdigest()[:16]
+            cache = stage.parent / "distribution-source-cache" / f"{source}-{key}"
+            if cache.is_dir():
+                for file in cache.iterdir():
+                    if file.is_file():
+                        shutil.copyfile(file, directory / file.name)
             result = subprocess.run(["apt-get", "source", "--download-only", "--only-source", f"{source}={source_version}"],
-                                    cwd=directory, stdout=subprocess.DEVNULL)
-            if result.returncode:
+                                    cwd=directory, stdout=subprocess.DEVNULL) if not list(directory.glob("*.dsc")) else None
+            if result is not None and result.returncode:
                 # Runner images can contain superseded packages no longer indexed
                 # by apt. Launchpad retains their exact original source uploads.
                 query = urlencode({"ws.op": "getPublishedSources", "source_name": source,
@@ -114,8 +141,11 @@ def main():
                     name = unquote(Path(urlparse(url).path).name)
                     if Path(name).name != name:
                         raise RuntimeError("Invalid source filename")
-                    with urlopen(url, timeout=180) as response, (directory / name).open("wb") as stream:
-                        shutil.copyfileobj(response, stream)
+                    try:
+                        with urlopen(url, timeout=180) as response, (directory / name).open("wb") as stream:
+                            shutil.copyfileobj(response, stream)
+                    except OSError as error:
+                        raise RuntimeError(f"Failed exact source download for {source}={source_version}: {url}") from error
             dsc = list(directory.glob("*.dsc"))
             if len(dsc) != 1:
                 raise RuntimeError(f"Missing source descriptor for {source}")
@@ -123,6 +153,10 @@ def main():
             subprocess.run(["dpkg-source", "-x", dsc[0].name, "unpacked"], cwd=directory,
                            check=True, stdout=subprocess.DEVNULL)
             shutil.rmtree(directory / "unpacked")
+            cache.mkdir(parents=True, exist_ok=True)
+            for file in directory.iterdir():
+                if file.is_file():
+                    shutil.copyfile(file, cache / file.name)
         exact_sources = sorted({(p["source"], p["source_version"]) for p in packages.values()})
         with ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(download, exact_sources))
@@ -131,9 +165,10 @@ def main():
         revision = re.search(r"type2-runtime/commit/([a-f0-9]+)", runtime)
         if not revision:
             raise RuntimeError(f"Unknown AppImage runtime: {runtime}")
+        if revision[1] != "fedfad5":
+            raise RuntimeError(f"AppImage runtime needs a new dependency-source review: {runtime}")
         # The source tag is valid only if its published launcher matches the payload.
-        launcher = urlopen("https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64", timeout=60).read()
-        if hashlib.sha256(launcher).digest() != hashlib.sha256((appdir / "AppRun.wrapped").read_bytes()).digest():
+        if hashlib.sha256((appdir / "AppRun.wrapped").read_bytes()).hexdigest() != "f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f":
             raise RuntimeError("AppRun is not the reviewed AppImageKit launcher")
         for repository, revision in (("type2-runtime", revision[1]), ("AppImageKit", "5735cc5bed206497cddfbd2a75e1982c2606c35d")):
             directory = source_root / repository
