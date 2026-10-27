@@ -10,7 +10,7 @@ Browse local folders or independent SFTP, explicit FTPS and FTP sessions in eith
 
 ## Project status
 
-The latest working source is the 0.4.8 development preview. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; verification of subsequent changes is recorded separately in [the progress notes](docs/PROGRESS.md). Published previews and matching sources are available from GitHub Releases; platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
+The latest working source is the 0.4.8 development preview. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; verification of subsequent changes is recorded separately in [the progress notes](docs/PROGRESS.md). Published previews and matching sources are available from [GitHub Releases](https://github.com/DrakonWolfDev/cosy-ftp/releases); platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
 
 ## Licence and contributions
 
@@ -18,15 +18,14 @@ Copyright (C) 2026 Andrew Hodgson / Wolf Forge. Cosy FTP is licensed under [GNU 
 
 ## Run from source
 
-Requires Node.js 24.5 or newer, npm, current stable Rust and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Windows needs Microsoft C++ Build Tools, WebView2 and native Strawberry Perl for the SSH dependency build; Linux needs WebKitGTK 4.1 and OpenSSL development libraries. The packaged application uses Rust + Tauri and does not bundle Node.js or Electron.
+Requires Node.js 24.5 or newer, npm, Python 3.12 or newer for notices/tests, current stable Rust and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Windows needs Microsoft C++ Build Tools, WebView2 and native Strawberry Perl for the SSH dependency build; Linux needs WebKitGTK 4.1 and OpenSSL development libraries. The packaged application uses Rust + Tauri and does not bundle Node.js or Electron.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-`npm run dev` (or `npm start`) opens the Tauri desktop application with the Vite development server. `npm run build` compiles the native application without installers; `python scripts/native-notices.py
-npm run dist` builds distribution packages. This is a desktop app, not a browser-hosted website.
+`npm run dev` (or `npm start`) opens the Tauri desktop application with the Vite development server. `npm run build` compiles the native application without installers; generate notices and source materials with `python scripts/native-notices.py`, then use `npm run dist` to build distribution packages. This is a desktop app, not a browser-hosted website.
 
 On first launch, public connection profiles, pinned SSH fingerprints and editor recovery copies are imported from the Electron preview when available. The originals are retained. Remembered Electron passwords must be entered again; Tauri stores newly remembered passwords in the operating system credential store. `COSY_USER_DATA` selects an isolated data directory and disables automatic import for testing.
 

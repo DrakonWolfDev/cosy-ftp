@@ -2,6 +2,8 @@
 
 ## Current status
 
+[0.4.8 preview](https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.8) was published on 27 October 2026 after Windows/Linux verification passed. The release includes all four package formats, checksums, native notices/inventories and matching source archives. The website handoff passed, and all four live download links were verified. Release approval is enabled; the site token has been exercised successfully.
+
 On 27 October 2026, Andrew confirmed the 0.4.6 qualification work through release preparation complete, including use on Windows, Linux Mint and Fedora. This is user-reported field evidence; the older automated fixture reports remain historical evidence. The new 0.4.7 work adds About, Wolf Update and release automation; its verification and public-source preparation are recorded in [PROGRESS.md](PROGRESS.md) and [PUBLIC_READINESS.md](PUBLIC_READINESS.md).
 
 ## Wolf Update
@@ -29,4 +31,4 @@ The release contract additionally requires Windows/Linux crate-and-project sourc
 
 Public artifact names: `cosy-ftp-X.Y.Z-windows.exe`, `cosy-ftp-X.Y.Z.deb`, `cosy-ftp-X.Y.Z.rpm`, `cosy-ftp-X.Y.Z.AppImage`.
 
-The website page remains in On the Workbench until separately moved by an explicit editorial change. No release event moves it to Out in the Wild. Its initial manifest is unavailable and its download controls are disabled. Version 0.4.8 is the first public binary release being prepared under this contract, with owner authorization to publish once the workflow passes.
+The website page remains in On the Workbench until separately moved by an explicit editorial change. No release event moves it to Out in the Wild. Its initial coming-soon manifest has been replaced by the verified 0.4.8 download manifest. Version 0.4.8 is the first public binary preview published under this contract after all required checks passed.

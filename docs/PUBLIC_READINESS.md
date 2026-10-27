@@ -1,16 +1,25 @@
 # Public source repository readiness
 
-Updated 27 October 2026. The repository is now public following owner approval and successful Windows/Linux hosted verification. Making the source public is separate from approving downloadable installers.
+Updated 27 October 2026. The repository is now public following owner approval and successful Windows/Linux hosted verification. The 0.4.8 preview is now published with verified installers, notices and matching sources.
 
-## Visibility checkpoint completed
+## 0.4.8 publication completed
+
+- Published [0.4.8 preview](https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.8) from commit `eec51975ed4373fe7dccd05ada299ec94a5bcbf2`.
+- Both platforms passed [main verification](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40568746895) and [tagged release verification/publication](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40576474045).
+- All four packages, three source archives, full notices and native inventories are published: 14 assets including SHA256SUMS.txt. All 13 manifest checksums were compared successfully with GitHub's uploaded-file digests.
+- The [website handoff](https://github.com/DrakonWolfDev/wolf-forge-static/actions/runs/40581193795) passed and committed manifest update `4bb9bc262688ca6936f4135724a4f343826fc64c`. The live website reports 0.4.8, and all four download links returned HTTP 200.
+- `WOLF_FORGE_SITE_TOKEN` dispatch permissions have been exercised successfully. `COSY_FTP_RELEASE_APPROVED=true` enables the guarded tagged-release pipeline.
+- Native source/notice delivery is implemented as described in THIRD_PARTY.md. The GLib security backport has an optimized regression test; GitHub marks the advisory fixed. The npm audit reported zero vulnerabilities.
+
+## Visibility checkpoint completed (historical)
 
 - Hosted verification passed for commit `9606e5422e35f80780e4334dc937414d8aaa1929`: [Windows and Ubuntu run](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40551422158). The headless Linux check uses software WebKit rendering and a D-Bus session.
 - Private vulnerability reporting, dependency alerts, secret scanning and secret push protection are enabled. GitHub detects the AGPL licence.
 - The latest targeted history scan inspected 207 blobs with no configured credential-pattern matches or tracked credential filenames. This remains a limited pattern scan.
-- `WOLF_FORGE_SITE_TOKEN` is configured; its dispatch permissions have not yet been exercised.
-- `COSY_FTP_RELEASE_APPROVED` remains unset. No release tag or public binary release was created. Native package notices and corresponding-source delivery remain outstanding.
+- `WOLF_FORGE_SITE_TOKEN` was configured at this checkpoint; its permissions were subsequently verified by the 0.4.8 handoff.
+- At this source-visibility checkpoint, release approval was unset and binary distribution preparation remained outstanding. Those items were subsequently completed for 0.4.8 as recorded above.
 
-## Prepared
+## Earlier preparation evidence
 
 - Full GNU AGPLv3 text in LICENSE, with `AGPL-3.0-only` metadata in package.json, package-lock.json and Cargo.toml. About states the licence. Native package configuration includes the licence and frontend notices.
 - README includes the actual Cosy FTP logo/workspace, current preview status, build instructions, project website, licence and contributor/security links.
@@ -27,14 +36,14 @@ Updated 27 October 2026. The repository is now public following owner approval a
 3. Review the security features GitHub makes available for the now-public repository, including secret scanning/push protection and dependency alerts.
 4. Check README rendering, licence detection and the public project page. Keep the website entry on On the Workbench, with disabled download controls.
 
-## Before binary publication
+## Subsequent binary releases
 
-Keep `COSY_FTP_RELEASE_APPROVED` unset. Complete native package licence/notice and corresponding-source delivery review for the exact shipped artifacts, then verify the configured `WOLF_FORGE_SITE_TOKEN` can send the website release event. Follow [RELEASE.md](RELEASE.md). Installers built before the latest source changes are not qualified by the source-readiness checks.
+The release approval switch is enabled. For each new version, regenerate and verify the native package notices and matching sources for its exact artifacts, and retain the publication and website checks. Follow [RELEASE.md](RELEASE.md). Installers built before the latest source changes are not qualified by the source-readiness checks.
 
-Hosted CI status is separate from the local evidence above. Confirm the checks attached to the final pushed commit before tagging any release. No version tag is created by this preparation.
+Hosted CI status is separate from the local evidence above. Confirm the checks attached to the final pushed commit before tagging any release. The initial visibility preparation created no tag; the separately authorized 0.4.8 publication is recorded above.
 
 ## 0.4.8 binary release preparation
 
-The owner authorized completing distribution preparation and publishing 0.4.8. Both lockfiles and native/package versions are updated together. Native notices and source archives are generated from each target?s locked dependency resolution, with exact-revision upstream notice supplements where crates omit their licence files. Windows WebView2 SDK loader notices are included. Linux distribution preparation inventories actual AppImage ELF payloads, verifies build IDs against installed packages and archives the corresponding exact Ubuntu source packages plus runtime/launcher sources. The publication contract refuses missing source/notice assets. Release approval is enabled only for the verified publication attempt. Hosted verification and website handoff must still be confirmed for the release commit.
+The owner authorized completing distribution preparation and publishing 0.4.8. Both lockfiles and native/package versions are updated together. Native notices and source archives are generated from each target's locked dependency resolution, with exact-revision upstream notice supplements where crates omit their licence files. Windows WebView2 SDK loader notices are included. Linux distribution preparation inventories actual AppImage ELF payloads, verifies build IDs against installed packages and archives the corresponding exact Ubuntu source packages plus runtime/launcher sources. The publication contract refuses missing source/notice assets. Release approval is enabled only for the verified publication attempt. Hosted verification and the live website handoff passed for the release commit, as linked above.
 
 GitHub advisory RUSTSEC-2024-0429 is addressed by vendoring the required GLib 0.18.5 bindings and applying the exact upstream pointer-mutability fix from gtk-rs-core#1343. The optimized forward/reverse string-iteration regression passes locally and is required in Linux CI. The vendored source and patch provenance are included in matching source snapshots and the native build fingerprint.

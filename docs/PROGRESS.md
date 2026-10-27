@@ -133,3 +133,12 @@ The measurements above describe the Electron prototype. On 26 October 2026, Rust
 The user confirms the earlier qualification checklist complete for 0.4.6. Remaining work is release preparation: verify the new About/updater and automation changes, configure the website dispatch token, finish the licence/signing/distribution decisions and deliberately enable public downloads when ready. Optional additions such as SSH keys remain outside the agreed first-release scope.
 
 See [RELIABILITY.md](RELIABILITY.md) for recovery instructions and known protocol limits.
+
+## 27 October 2026 - 0.4.8 public preview
+
+- Published v0.4.8 from eec5197 after both main and tagged Windows/Linux qualification passed. The sidebar reordering and single Appearance theme control are included.
+- Native notices and matching project/crate/system source archives are required release assets. The AppImage inventory verifies library build IDs and exact Ubuntu source versions; reviewed runtime/launcher sources and notices are included.
+- Backported the exact upstream GLib VariantStrIter fix for RUSTSEC-2024-0429. The optimized regression and native desktop checks pass; GitHub marks the advisory fixed.
+- All 14 release assets are present, and all 13 manifest hashes match GitHub's upload digests. The website handoff passed, the live manifest shows 0.4.8, and Windows/DEB/RPM/AppImage links returned HTTP 200.
+- Release: https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.8
+- Release verification: https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40576474045
