@@ -2,6 +2,10 @@
 name = "cosy-ftp"
 version = "0.4.7"
 edition = "2021"
+license = "AGPL-3.0-only"
+authors = ["Andrew Hodgson"]
+repository = "https://github.com/DrakonWolfDev/cosy-ftp"
+description = "A calm two-pane file transfer client for Windows and Linux"
 
 [lib]
 name = "cosy_ftp_lib"

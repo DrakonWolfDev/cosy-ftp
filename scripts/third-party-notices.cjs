@@ -2,10 +2,13 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 async function main() {
+  const legacy = process.argv.includes('--legacy');
   const seen = new Set();
   const sections = [
     'Cosy FTP — bundled JavaScript library notices',
-    'Electron/Chromium notices are also supplied by the Electron distribution.',
+    legacy
+      ? 'Electron/Chromium notices are also supplied by the Electron distribution.'
+      : 'Current Rust/Tauri frontend. Native dependency requirements are tracked in THIRD_PARTY.md.',
   ];
   async function visit(name, from = process.cwd()) {
     let entry;
@@ -31,7 +34,7 @@ async function main() {
     if (seen.has(directory)) return;
     seen.add(directory);
     const licenses = (await fs.readdir(directory)).filter((file) =>
-      /^(licen[cs]e|copying|notice)(\.|$)/i.test(file),
+      /^(licen[cs]e|copying|notice)([._-]|$)/i.test(file),
     );
     if (!licenses.length) throw new Error(`No license text found for bundled dependency ${name}`);
     sections.push(
@@ -45,7 +48,9 @@ async function main() {
     }).sort())
       await visit(dependency, directory);
   }
-  for (const name of ['basic-ftp', 'ssh2', 'zod', 'react', 'react-dom', 'lucide-react'])
+  for (const name of legacy
+    ? ['basic-ftp', 'ssh2', 'zod', 'react', 'react-dom', 'lucide-react']
+    : ['react', 'react-dom', 'lucide-react', '@tauri-apps/api'])
     await visit(name);
   await fs.mkdir('build', { recursive: true });
   await fs.writeFile('build/THIRD_PARTY_NOTICES.txt', `${sections.join('\n').trimEnd()}\n`);

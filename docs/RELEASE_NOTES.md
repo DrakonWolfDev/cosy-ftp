@@ -1,3 +1,14 @@
+# 0.4.7 - source preview and release preparation
+
+27 October 2026. Public installer downloads are not yet enabled.
+
+- About shows Cosy FTP's existing transfer logo and the small Wolf Forge paw-print project signature.
+- Wolf Update checks published GitHub releases, including previews, with manual checks, optional daily checks and remembered version dismissal. Opening an update visits the official project page; installation stays manual.
+- Fixed populated SFTP subdirectory listings on Windows, with real-server nested-directory list/read coverage.
+- Added Windows/Linux verification and gated tagged-release automation for NSIS, DEB, RPM and AppImage packages, checksums and the website download event.
+- Licensed the original project under AGPL-3.0-only and added public contribution/security guidance. Native binary redistribution review remains separate from publishing the source.
+- The Wolf Forge project page uses actual app screenshots and stays on the workbench with Coming soon downloads.
+
 # 0.3.0 — conflict review and draft rescue
 
 25 October 2026.

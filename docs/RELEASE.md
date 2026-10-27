@@ -2,7 +2,7 @@
 
 ## Current status
 
-On 27 October 2026, Andrew confirmed the 0.4.6 qualification work through release preparation complete, including use on Windows, Linux Mint and Fedora. This is user-reported field evidence; the older automated fixture reports remain historical evidence. The new 0.4.7 work adds About, Wolf Update and release automation and requires its own verification.
+On 27 October 2026, Andrew confirmed the 0.4.6 qualification work through release preparation complete, including use on Windows, Linux Mint and Fedora. This is user-reported field evidence; the older automated fixture reports remain historical evidence. The new 0.4.7 work adds About, Wolf Update and release automation; its verification and public-source preparation are recorded in [PROGRESS.md](PROGRESS.md) and [PUBLIC_READINESS.md](PUBLIC_READINESS.md).
 
 ## Wolf Update
 
@@ -13,6 +13,8 @@ Checks contact only the official repository's GitHub Releases endpoint, with a 1
 ## GitHub Actions
 
 Pushes to main, pull requests and manual runs execute the existing Windows/Linux native verification and packaging workflow. Packages include Windows NSIS, Linux DEB, RPM and AppImage, plus checksums. The tagged-release workflow reuses these checks rather than publishing untested local files.
+
+Before publishing a version, complete the native binary licence, notice and corresponding-source review in [THIRD_PARTY.md](../THIRD_PARTY.md). Public source visibility alone does not qualify the installers.
 
 Before publishing a version:
 

@@ -200,11 +200,17 @@ impl Endpoint {
                 .readdir(Path::new(path))?
                 .into_iter()
                 .map(|(p, stat)| {
-                    let text = p
-                        .to_str()
-                        .context("Filename is not valid UTF-8")?
-                        .to_owned();
-                    safe_name(&basename(&text, true), true)?;
+                    // ssh2 joins entries using the client's native PathBuf rules.
+                    // Keep that native separator out of the remote POSIX path.
+                    ensure!(
+                        p.parent() == Some(Path::new(path)),
+                        "Unsupported SFTP entry path"
+                    );
+                    let name = p
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .context("Filename is not valid UTF-8")?;
+                    let text = join(path, name, true)?;
                     Ok(sftp_entry(text, stat))
                 })
                 .collect(),

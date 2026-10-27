@@ -32,6 +32,12 @@
     "targets": ["deb", "appimage", "rpm"],
     "icon": ["../build/icon.png", "../build/icon.ico"],
     "category": "Utility",
+    "licenseFile": "../LICENSE",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../build/THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt",
+      "../THIRD_PARTY.md": "THIRD_PARTY.md"
+    },
     "shortDescription": "A calm two-pane file transfer client"
   }
 }

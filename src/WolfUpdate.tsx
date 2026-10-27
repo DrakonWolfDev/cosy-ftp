@@ -111,6 +111,7 @@ export function WolfUpdate({
               Built for Windows and Linux with Rust, Tauri and React. Created by Andrew Hodgson at
               Wolf Forge.
             </p>
+            <p className="form-hint">Licensed under GNU AGPL version 3 only. © 2026 Wolf Forge.</p>
             <section className="about-updates" aria-labelledby="wolf-update-heading">
               <h3 id="wolf-update-heading">Wolf Update</h3>
               <p>

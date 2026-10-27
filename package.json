@@ -10,7 +10,7 @@
     "url": "https://github.com/DrakonWolfDev/cosy-ftp.git"
   },
   "author": "Cosy FTP contributors",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=24.5.0"
   },
@@ -18,7 +18,7 @@
     "dev": "tauri dev",
     "start": "tauri dev",
     "dev:ui": "vite --host 127.0.0.1",
-    "build:ui": "tsc --noEmit && vite build",
+    "build:ui": "node scripts/third-party-notices.cjs && tsc --noEmit && vite build",
     "build": "tauri build --no-bundle",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "test": "cargo test --manifest-path src-tauri/Cargo.toml",
@@ -27,7 +27,7 @@
     "package": "tauri build",
     "dist": "tauri build",
     "icons": "node scripts/generate-icons.cjs",
-    "legacy:build": "tsc -p tsconfig.backend.json && vite build && node scripts/third-party-notices.cjs && node scripts/build-info.cjs",
+    "legacy:build": "tsc -p tsconfig.backend.json && vite build && node scripts/third-party-notices.cjs --legacy && node scripts/build-info.cjs",
     "legacy:dev": "npm run legacy:build && electron dist-electron/electron/main.js",
     "legacy:test:desktop": "npm run legacy:build && tsx scripts/desktop-smoke.ts",
     "legacy:test:packaged": "tsx scripts/desktop-smoke.ts --packaged",

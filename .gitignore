@@ -11,3 +11,7 @@ release/
 !.env.example
 src-tauri/target/
 src-tauri/gen/
+
+# Local Python test caches
+__pycache__/
+*.py[cod]

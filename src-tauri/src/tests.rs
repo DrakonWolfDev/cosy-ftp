@@ -287,6 +287,20 @@ fn real_sftp_trust_auth_transfer_and_remote_relay() {
     let payload = vec![31u8; 2 * 1024 * 1024];
     fs::write(server.root.join("original.bin"), &payload).unwrap();
     let mut target = Endpoint::connect(&p, "test-password", |_, _| Ok(true)).unwrap();
+    fs::create_dir_all(server.root.join("nested/deeper")).unwrap();
+    fs::write(
+        server.root.join("nested/deeper/settings.json"),
+        "{\"enabled\":true}\n",
+    )
+    .unwrap();
+    let nested = source.list("/nested/deeper").unwrap();
+    assert_eq!(nested.len(), 1);
+    assert_eq!(nested[0].name, "settings.json");
+    assert_eq!(nested[0].path, "/nested/deeper/settings.json");
+    assert_eq!(
+        source.read_text(&nested[0].path).unwrap().0,
+        "{\"enabled\":true}\n"
+    );
     copy_file(
         &mut source,
         &mut target,

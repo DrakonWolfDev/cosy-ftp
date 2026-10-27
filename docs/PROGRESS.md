@@ -14,8 +14,15 @@ Updated 27 October 2026. The working tree is a **0.4.7 Rust + Tauri development 
 - Corrected About to lead with the existing Cosy FTP transfer logo. The small `A WOLF FORGE PROJECT` paw-print footer matches the signatures in Wolf Launcher and AMP.
 - Replaced the website draft's illustrated file panels and text placeholders with real native FTPS workspace, editor and light-theme captures using disposable local demo servers. Corrected the project card to use Cosy FTP's logo.
 - The corrected Windows native desktop workflows and About accessibility pass in both themes. The live manual update check displays the expected not-yet-public message for the private repository. Website desktop/mobile layout, image loading, accessibility, workbench-only placement and all four disabled download controls pass.
-- All changes remain local and uncommitted at the user's request. Installers built before this branding correction do not represent the latest source.
-- Separate capture finding for follow-up: connecting to a populated SFTP subdirectory on Windows returned `Enter a single file or folder name`. The fixture and Windows path handling need investigation before release; the website captures use FTPS. No protocol code was changed as part of this branding correction.
+- The reviewed app and website changes were subsequently committed and pushed to main with the user's approval. Installers built before this branding correction do not represent the latest source.
+- The separate Windows SFTP populated-subdirectory issue was subsequently reproduced and fixed during public-source preparation. The SSH library joined listed paths with native Windows separators; entries are now validated and rebuilt with remote POSIX separators. A real-server nested-directory list/read regression fails before the fix and passes after it on Windows and Linux.
+
+### Public source preparation
+
+- Applied the user-selected AGPL-3.0-only licence, added contributor/security guidance and a bug-report form, refreshed the README with the real product logo/screenshot, and prepared package licence resources.
+- Refreshed JavaScript notices for the actual Tauri frontend and preserved an explicit legacy mode. Native binary licence/source delivery remains an explicit release-preparation task; public source and public installers are separate decisions.
+- Targeted Git history scan found no configured secret-pattern matches or tracked credential files. Online npm audit reports zero vulnerabilities. All 28 Windows / 29 Linux backend/protocol tests, TypeScript, production UI and release-contract checks pass.
+- Repository remains private, downloads remain Coming soon, and no release tag is created. Private vulnerability reporting must be enabled after visibility changes. See [PUBLIC_READINESS.md](PUBLIC_READINESS.md).
 
 ## 0.4.6 Preserve the file-list position
 

@@ -1,8 +1,20 @@
 ﻿# Cosy FTP
 
+<img src="build/icon.svg" alt="Cosy FTP transfer logo" width="72" height="72">
+
 A calm two-pane file transfer client for Windows and Linux. **Development preview — not a finished v1.**
 
 Browse local folders or independent SFTP, explicit FTPS and FTP sessions in either pane. Copy files and folders through a queue, move files on the same server, and edit remote UTF-8 text with explicit upload and local recovery copies. Choose a muted dark or warm light theme.
+
+![Cosy FTP showing website files and a backup folder in its dark theme](docs/images/workspace.webp)
+
+## Project status
+
+The latest working source is the 0.4.7 development preview. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; verification of subsequent changes is recorded separately in [the progress notes](docs/PROGRESS.md). Public downloads are coming soon on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
+
+## Licence and contributions
+
+Copyright (C) 2026 Andrew Hodgson / Wolf Forge. Cosy FTP is licensed under [GNU AGPL version 3 only](LICENSE) (`AGPL-3.0-only`). Dependencies retain their own licences; see [third-party components](THIRD_PARTY.md). See [CONTRIBUTING.md](CONTRIBUTING.md) for development and bug reports, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## Run from source
 
@@ -58,6 +70,7 @@ Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tes
 
 ## Project documents
 
+- [Public source readiness](docs/PUBLIC_READINESS.md)
 - [Milestones and acceptance criteria](MILESTONES.md)
 - [Progress and verification evidence](docs/PROGRESS.md)
 - [v1 scope](docs/SCOPE.md)
