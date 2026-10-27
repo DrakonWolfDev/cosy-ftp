@@ -1,6 +1,14 @@
 # Public source repository readiness
 
-Prepared 27 October 2026. The repository remains private. Making the source public is separate from approving downloadable installers.
+Updated 27 October 2026. The repository is now public following owner approval and successful Windows/Linux hosted verification. Making the source public is separate from approving downloadable installers.
+
+## Visibility checkpoint completed
+
+- Hosted verification passed for commit `9606e5422e35f80780e4334dc937414d8aaa1929`: [Windows and Ubuntu run](https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40551422158). The headless Linux check uses software WebKit rendering and a D-Bus session.
+- Private vulnerability reporting, dependency alerts, secret scanning and secret push protection are enabled. GitHub detects the AGPL licence.
+- The latest targeted history scan inspected 207 blobs with no configured credential-pattern matches or tracked credential filenames. This remains a limited pattern scan.
+- `WOLF_FORGE_SITE_TOKEN` is configured; its dispatch permissions have not yet been exercised.
+- `COSY_FTP_RELEASE_APPROVED` remains unset. No release tag or public binary release was created. Native package notices and corresponding-source delivery remain outstanding.
 
 ## Prepared
 
@@ -12,7 +20,7 @@ Prepared 27 October 2026. The repository remains private. Making the source publ
 - Windows populated SFTP subdirectory failure was reproduced before the fix. The regression now verifies listing and reading `/nested/deeper/settings.json` with correct remote paths. All 28 Windows and 29 Linux backend/protocol tests pass.
 - Final Windows native desktop workflows and both-theme workspace/About accessibility pass with the current embedded source fingerprint. TypeScript, production UI build and release-contract tests pass. Online npm audit reports zero vulnerabilities for the current lockfile. This does not establish a Rust/native dependency audit.
 
-## At the visibility change
+## Visibility-change checklist (historical preparation)
 
 1. Deliberately change the repository to public only after owner approval. This preparation does not change visibility or publish a binary release.
 2. Enable GitHub private vulnerability reporting and verify that SECURITY.md's private-report link works. GitHub exposes this feature for public repositories; the enablement endpoint returned 404 while this repository was private. Until enabled, the security policy provides the Wolf Forge contact fallback. See [GitHub's instructions](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository).
@@ -21,6 +29,6 @@ Prepared 27 October 2026. The repository remains private. Making the source publ
 
 ## Before binary publication
 
-Keep `COSY_FTP_RELEASE_APPROVED` unset. Complete native package licence/notice and corresponding-source delivery review for the exact shipped artifacts, then configure `WOLF_FORGE_SITE_TOKEN` for the website release event. Follow [RELEASE.md](RELEASE.md). Installers built before the latest source changes are not qualified by the source-readiness checks.
+Keep `COSY_FTP_RELEASE_APPROVED` unset. Complete native package licence/notice and corresponding-source delivery review for the exact shipped artifacts, then verify the configured `WOLF_FORGE_SITE_TOKEN` can send the website release event. Follow [RELEASE.md](RELEASE.md). Installers built before the latest source changes are not qualified by the source-readiness checks.
 
 Hosted CI status is separate from the local evidence above. Confirm the checks attached to the final pushed commit before tagging any release. No version tag is created by this preparation.

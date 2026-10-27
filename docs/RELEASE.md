@@ -18,7 +18,7 @@ Before publishing a version, complete the native binary licence, notice and corr
 
 Before publishing a version:
 
-1. Decide public repository visibility before enabling downloads. The repository is currently private; unauthenticated Wolf Update checks and public GitHub downloads cannot access private releases. About displays a clear not-yet-published message in this state. No token is embedded in the app. The release workflow refuses publication while the repository is private.
+1. Decide public repository visibility before enabling downloads. The repository became public on 27 October 2026 after owner approval and passing hosted verification; unauthenticated Wolf Update checks and public GitHub downloads cannot access private releases. About displays a clear not-yet-published message in this state. No token is embedded in the app. The release workflow refuses publication while the repository is private.
 2. Set matching versions in package.json, package-lock.json, Cargo.toml/Cargo.lock and tauri.conf.json; commit and push main.
 3. Configure `WOLF_FORGE_SITE_TOKEN` in the Cosy FTP repository. It needs permission to send `repository_dispatch` events to `DrakonWolfDev/wolf-forge-static`, as in Launcher and AMP.
 4. Set repository variable `COSY_FTP_RELEASE_APPROVED=true` when public downloads are ready. Leave it unset while downloads must remain Coming soon. This is the equivalent of AMP's binary-release switch.
