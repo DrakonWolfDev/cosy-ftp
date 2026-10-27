@@ -22,6 +22,18 @@ Install current stable Rust and the [official platform prerequisites](https://v2
 
 For native window checks, install `tauri-driver` and the platform WebDriver, build an executable with embedded assets (`cargo build --manifest-path src-tauri/Cargo.toml --features custom-protocol` after `npm run build:ui` for a debug build), then run `python scripts/tauri-smoke.py <executable>`. Headless Linux needs `xvfb-run -a`. `COSY_TAURI_DRIVER` and `COSY_NATIVE_DRIVER` can specify driver paths. Reports and screenshots go under `.test-artifacts/tauri/`; `COSY_SMOKE_ARTIFACTS` overrides the output folder.
 
+## 0.4.6 Refresh without losing position
+
+File rows and virtual-list spacers stay mounted during refresh, with the table inert and its container marked busy. This avoids collapsing the scroll range. Windows and Linux `.deb` desktop checks cover a 400-file remote directory scrolled over 4,000 pixels down through refresh, mkdir, rename and editor save, then verify new-directory navigation resets to the top. AppImage passes on retry after an initial WebDriver disconnection during a save. Both-theme accessibility, TypeScript and the production interface build pass; final desktop checks match the embedded source/asset fingerprint. Packages/checksums are under `release/tauri/`.
+
+## 0.4.5 Editor workflow and size limit
+
+Each pane has a visible Edit action. Closing an editor tab leaves the other working copies visible and selects a neighbour when necessary; the editor window's X keeps working copies for reopening. UTF-8 text, including JSON, is supported up to 10 MiB across reads, drafts and recovery validation. Windows and both Linux packages pass native workflows opening, editing and saving a 3.4 MB JSON file plus hiding/reopening and active/background tab closure. Both-theme accessibility passes. All 25 Windows / 26 Linux backend tests pass, including exact-limit and oversized-file cases; Linux Clippy, TypeScript and the production interface build pass. Local packages/checksums are under `release/tauri/`.
+
+## 0.4.4 Connection workflow
+
+Sidebar connections now default to the right pane, while each pane's selector remains explicit. Stored credentials are used automatically, with a password override after retrieval/authentication failure; remembering a new credential requires a password. The queue starts expanded. Dark remains the default and the light option is retained. Production Windows checks exercise actual sidebar auto-connect, explicit left-pane selection and rejected-credential fallback with Windows Credential Manager. Windows and both Linux packages pass desktop/accessibility checks with matching source/asset fingerprints. Linux checks use session-only credentials because the WSL environment has no Secret Service; Mint operation is user-reported, and Linux keyring persistence remains to be qualified.
+
 ## 0.4.3 Workspace layout
 
 The welcome block and separate toolbar are consolidated into one compact header, pane headings use less height, and the queue starts folded but opens for active/failed transfers. File row heights and text size are retained. Windows checks include a populated FTPS pane at normal and 980 × 680 window sizes, matching source/asset fingerprints and both-theme accessibility. Like-for-like file-list measurements gain 156 CSS pixels at an 844-pixel content height and 59 pixels at 680 pixels. The Linux `.deb` and AppImage desktop checks also pass with no axe violations. Artifacts/checksums are under `release/tauri/`; visual evidence is in `.test-artifacts/tauri/layout-043/`.

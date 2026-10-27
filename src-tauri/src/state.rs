@@ -315,8 +315,8 @@ pub fn confirm(app: &AppHandle, title: &str, message: &str, action: &str) -> boo
 }
 pub fn validate_content(content: &str) -> Result<()> {
     ensure!(
-        content.len() <= 2 * 1024 * 1024 && !content.contains('\0'),
-        "Draft must be UTF-8 text up to 2 MiB"
+        content.len() <= MAX_EDIT_BYTES && !content.contains('\0'),
+        "Draft must be UTF-8 text up to 10 MiB"
     );
     Ok(())
 }

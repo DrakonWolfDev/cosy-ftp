@@ -394,6 +394,15 @@ function FilePane(props: PaneProps) {
           New folder
         </button>
         <button
+          disabled={busy || selected.length !== 1 || selected[0]?.kind !== 'file'}
+          onClick={() => void open(selected[0])}
+          title="Edit selected text file"
+          aria-label={`${props.side} edit selected file`}
+        >
+          <FileCode2 size={14} />
+          Edit
+        </button>
+        <button
           disabled={busy || selected.length !== 1}
           onClick={() => {
             setNewName(selected[0].name);
@@ -431,6 +440,7 @@ function FilePane(props: PaneProps) {
         role="group"
         tabIndex={0}
         aria-label={`${props.side} files`}
+        aria-busy={busy}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
           if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
@@ -444,7 +454,7 @@ function FilePane(props: PaneProps) {
           }
         }}
       >
-        <table aria-rowcount={entries.length + 1}>
+        <table aria-rowcount={entries.length + 1} inert={busy}>
           <thead>
             <tr>
               <th className="check-cell">
@@ -479,83 +489,82 @@ function FilePane(props: PaneProps) {
             </tr>
           </thead>
           <tbody>
-            {!busy && firstRow > 0 && (
+            {firstRow > 0 && (
               <tr aria-hidden="true">
                 <td colSpan={4} style={{ height: firstRow * 34, padding: 0, border: 0 }} />
               </tr>
             )}
-            {!busy &&
-              visibleEntries.map((entry, index) => (
-                <tr
-                  key={entry.name}
-                  aria-rowindex={firstRow + index + 2}
-                  className={selectedNames.has(entry.name) ? 'selected' : ''}
-                  onClick={(event) => toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey)}
-                  onDoubleClick={() => void open(entry)}
-                  draggable
-                  onDragStart={(event) => {
-                    const names = selectedNames.has(entry.name) ? selection : [entry.name];
-                    setSelection(names);
-                    event.dataTransfer.setData(
-                      'application/x-cosy-files',
-                      JSON.stringify({ side: props.side, names }),
-                    );
-                    event.dataTransfer.effectAllowed = 'copy';
-                  }}
-                >
-                  <td className="check-cell" onClick={(event) => event.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${entry.name}`}
-                      checked={selectedNames.has(entry.name)}
-                      onChange={(event) =>
-                        toggle(entry, true, Boolean((event.nativeEvent as MouseEvent).shiftKey))
-                      }
-                    />
-                  </td>
-                  <td>
-                    <button
-                      className="file-name"
-                      onClick={(event) => {
+            {visibleEntries.map((entry, index) => (
+              <tr
+                key={entry.name}
+                aria-rowindex={firstRow + index + 2}
+                className={selectedNames.has(entry.name) ? 'selected' : ''}
+                onClick={(event) => toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey)}
+                onDoubleClick={() => void open(entry)}
+                draggable
+                onDragStart={(event) => {
+                  const names = selectedNames.has(entry.name) ? selection : [entry.name];
+                  setSelection(names);
+                  event.dataTransfer.setData(
+                    'application/x-cosy-files',
+                    JSON.stringify({ side: props.side, names }),
+                  );
+                  event.dataTransfer.effectAllowed = 'copy';
+                }}
+              >
+                <td className="check-cell" onClick={(event) => event.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${entry.name}`}
+                    checked={selectedNames.has(entry.name)}
+                    onChange={(event) =>
+                      toggle(entry, true, Boolean((event.nativeEvent as MouseEvent).shiftKey))
+                    }
+                  />
+                </td>
+                <td>
+                  <button
+                    className="file-name"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
                         event.stopPropagation();
-                        toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void open(entry);
-                        }
-                      }}
-                    >
-                      {entry.kind === 'directory' ? (
-                        <Folder size={17} className="folder-icon" />
-                      ) : entry.kind === 'link' ? (
-                        <Link2 size={16} className="muted" />
-                      ) : /\.(json|html|css|js|ts|xml|cfg|ini|md|txt|py|sh|yml|yaml)$/i.test(
-                          entry.name,
-                        ) ? (
-                        <FileCode2 size={16} className="text-icon" />
-                      ) : (
-                        <File size={16} className="muted" />
-                      )}
-                      <span>{entry.name}</span>
-                    </button>
-                  </td>
-                  <td className="file-size">
-                    {entry.kind === 'directory' ? '—' : bytes(entry.size)}
-                  </td>
-                  <td className="file-date">{date(entry.modified)}</td>
-                </tr>
-              ))}
-            {!busy && remainingRows > 0 && (
+                        void open(entry);
+                      }
+                    }}
+                  >
+                    {entry.kind === 'directory' ? (
+                      <Folder size={17} className="folder-icon" />
+                    ) : entry.kind === 'link' ? (
+                      <Link2 size={16} className="muted" />
+                    ) : /\.(json|html|css|js|ts|xml|cfg|ini|md|txt|py|sh|yml|yaml)$/i.test(
+                        entry.name,
+                      ) ? (
+                      <FileCode2 size={16} className="text-icon" />
+                    ) : (
+                      <File size={16} className="muted" />
+                    )}
+                    <span>{entry.name}</span>
+                  </button>
+                </td>
+                <td className="file-size">
+                  {entry.kind === 'directory' ? '—' : bytes(entry.size)}
+                </td>
+                <td className="file-date">{date(entry.modified)}</td>
+              </tr>
+            ))}
+            {remainingRows > 0 && (
               <tr aria-hidden="true">
                 <td colSpan={4} style={{ height: remainingRows * 34, padding: 0, border: 0 }} />
               </tr>
             )}
           </tbody>
         </table>
-        {busy && (
+        {busy && !listing && (
           <div className="pane-empty">
             <LoaderCircle className="spin" size={25} />
             <strong>Opening folder…</strong>
@@ -662,8 +671,10 @@ function Modal({
   children,
   onClose,
   wide = false,
+  closeLabel = 'Close dialog',
 }: {
   title: string;
+  closeLabel?: string;
   children: ReactNode;
   onClose(): void;
   wide?: boolean;
@@ -717,7 +728,12 @@ function Modal({
       >
         <div className="modal-heading">
           <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close dialog">
+          <button
+            className="icon-button"
+            onClick={onClose}
+            aria-label={closeLabel}
+            title={closeLabel}
+          >
             <X size={19} />
           </button>
         </div>
@@ -758,6 +774,12 @@ function ConnectionForm({
   const [busy, setBusy] = useState(false);
   const set = <K extends keyof ProfileInput>(key: K, val: ProfileInput[K]) =>
     setForm((previous) => ({ ...previous, [key]: val }));
+  const canReusePassword =
+    existing?.hasPassword &&
+    existing.host === form.host &&
+    existing.port === form.port &&
+    existing.protocol === form.protocol &&
+    existing.username === form.username;
   return (
     <Modal
       title={existing ? 'Edit connection' : 'A new place for your files'}
@@ -847,6 +869,7 @@ function ConnectionForm({
             Password
             <input
               type="password"
+              required={form.rememberPassword && !canReusePassword}
               autoComplete="new-password"
               value={password}
               placeholder={
@@ -923,7 +946,7 @@ function Queue({
   onError(error: unknown): void;
   onRefresh(): void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const active = jobs.filter((job) => job.state === 'running' || job.state === 'queued');
   const needsAttention = active.length > 0 || jobs.some((job) => job.state === 'failed');
   useEffect(() => {
@@ -1077,7 +1100,7 @@ function Editor({
   sessions: SessionInfo[];
   onSelect(id: string): void;
   onDocument(document: EditDocument): void;
-  onClose(id: string): void;
+  onClose(id: string): Promise<void>;
   onError(error: unknown): void;
   onRefresh(): void;
 }) {
@@ -1179,7 +1202,12 @@ function Editor({
     }
   }
   return (
-    <Modal title="Text editor" wide onClose={() => onSelect('')}>
+    <Modal
+      title="Text editor"
+      wide
+      closeLabel="Hide editor (keep working copies)"
+      onClose={() => onSelect('')}
+    >
       <div className="editor-tabs">
         {documents.map((document) => (
           <div
@@ -1199,7 +1227,8 @@ function Editor({
               className="icon-button"
               aria-label={`Close ${document.name}`}
               disabled={busy}
-              onClick={() => onClose(document.id)}
+              title="Close this working copy"
+              onClick={() => void closeTab(document.id)}
             >
               <X size={13} />
             </button>
@@ -1356,9 +1385,18 @@ function Editor({
       </div>
     </Modal>
   );
+  async function closeTab(id: string) {
+    setBusy(true);
+    try {
+      await pending.current.catch(() => {});
+      await onClose(id);
+    } finally {
+      setBusy(false);
+    }
+  }
   function change(content: string) {
-    if (new TextEncoder().encode(content).length > 2 * 1024 * 1024 || content.includes('\0')) {
-      onError(new Error('The editor accepts UTF-8 text up to 2 MiB, without NUL characters.'));
+    if (new TextEncoder().encode(content).length > 10 * 1024 * 1024 || content.includes('\0')) {
+      onError(new Error('The editor accepts UTF-8 text up to 10 MiB, without NUL characters.'));
       return;
     }
     const id = selected.id;
@@ -1523,6 +1561,8 @@ export default function App() {
   const [connectionForm, setConnectionForm] = useState<Profile | 'new' | null>(null);
   const [connecting, setConnecting] = useState<{ profile: Profile; side: 'left' | 'right' }>();
   const [connectBusy, setConnectBusy] = useState(false);
+  const connectionInFlight = useRef(false);
+  const [usingSavedPassword, setUsingSavedPassword] = useState(false);
   const [connectError, setConnectError] = useState('');
   const [password, setPassword] = useState('');
   const [overwrite, setOverwrite] = useState(false);
@@ -1603,36 +1643,51 @@ export default function App() {
   async function closeDocument(id: string) {
     try {
       if (await value(window.cosy.closeEdit(id))) {
+        const index = documents.findIndex((document) => document.id === id);
+        const next = documents[index + 1] ?? documents[index - 1];
         setDocuments((previous) => previous.filter((document) => document.id !== id));
-        setEditorId('');
+        setEditorId((current) => (current === id ? (next?.id ?? '') : current));
       }
     } catch (error) {
       onError(error);
     }
   }
-  function connect(profile: Profile, side: 'left' | 'right') {
-    setConnecting({ profile, side });
+  function connect(profile: Profile, side: 'left' | 'right' = 'right') {
+    if (connectionInFlight.current) return;
+    const request = { profile, side };
+    setConnecting(request);
     setPassword('');
     setConnectError('');
+    setUsingSavedPassword(profile.hasPassword);
+    if (profile.hasPassword) void openConnection(request);
   }
-  async function doConnect() {
-    if (!connecting) return;
+  async function openConnection(
+    request: { profile: Profile; side: 'left' | 'right' },
+    enteredPassword?: string,
+  ) {
+    if (connectionInFlight.current) return;
+    connectionInFlight.current = true;
     setConnectBusy(true);
     setConnectError('');
     try {
       const session = await value(
-        window.cosy.connect({ profileId: connecting.profile.id, password: password || undefined }),
+        window.cosy.connect({ profileId: request.profile.id, password: enteredPassword }),
       );
       setSessions((previous) => [...previous, session]);
-      if (connecting.side === 'left') setLeftTarget(session);
+      if (request.side === 'left') setLeftTarget(session);
       else setRightTarget(session);
       setConnecting(undefined);
       setPassword('');
     } catch (error) {
+      setUsingSavedPassword(false);
       setConnectError(message(error));
     } finally {
+      connectionInFlight.current = false;
       setConnectBusy(false);
     }
+  }
+  async function doConnect() {
+    if (connecting) await openConnection(connecting, password || undefined);
   }
   async function transfer(side: 'left' | 'right', names?: string[], move = false) {
     const source = side === 'left' ? left : right;
@@ -1720,7 +1775,7 @@ export default function App() {
             {profiles.length ? (
               profiles.map((profile) => (
                 <div className="connection-item" key={profile.id}>
-                  <button className="place" onClick={() => connect(profile, active)}>
+                  <button className="place" onClick={() => connect(profile)}>
                     <Server size={17} />
                     <span>
                       {profile.name}
@@ -1941,7 +1996,7 @@ export default function App() {
             Existing files are protected
             {overwrite ? ' unless replacement is confirmed.' : ' by default.'}
           </span>
-          <span>Double-click a folder to explore, or a text file to edit.</span>
+          <span>Select a text file and choose Edit. Double-click folders to explore.</span>
         </div>
         {documents.length > 0 && (
           <div className="recovery-strip">
@@ -2018,21 +2073,27 @@ export default function App() {
               void doConnect();
             }}
           >
-            <label className="field">
-              Password
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                placeholder={
-                  connecting.profile.hasPassword
-                    ? 'Using saved password; enter to override'
-                    : 'Enter your password'
-                }
-                onChange={(event) => setPassword(event.target.value)}
-                disabled={connectBusy}
-              />
-            </label>
+            {usingSavedPassword ? (
+              <p className="form-hint" role="status">
+                Connecting with your saved password...
+              </p>
+            ) : (
+              <label className="field">
+                Password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  placeholder={
+                    connecting.profile.hasPassword
+                      ? 'Enter a password to try again'
+                      : 'Enter your password'
+                  }
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={connectBusy}
+                />
+              </label>
+            )}
             {connecting.profile.protocol === 'ftp' && (
               <p className="warning form-hint">This connection is unencrypted.</p>
             )}
@@ -2090,9 +2151,10 @@ export default function App() {
               names must be unused. Delete is permanent and folders must be empty.
             </p>
             <p>
-              Double-click a UTF-8 text file to edit it (up to 2 MiB). Edits are saved as local
-              recovery copies. Use <strong>Save to server</strong> or <strong>Ctrl+S</strong> to
-              upload explicitly. Changed originals are protected.
+              Select a file and choose Edit, or double-click a UTF-8 text file (up to 10 MiB),
+              including JSON. Edits are saved as local recovery copies. Use{' '}
+              <strong>Save to server</strong> or <strong>Ctrl+S</strong> to upload explicitly.
+              Changed originals are protected.
             </p>
             <p>
               Use <strong>Ctrl+A</strong> in the file list to select visible items,{' '}

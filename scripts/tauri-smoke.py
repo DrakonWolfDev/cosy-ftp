@@ -114,6 +114,8 @@ with tempfile.TemporaryDirectory(prefix="cosy-tauri-smoke-") as directory:
             assert initial["version"] == EXPECTED_VERSION, initial
             assert initial["buildId"] == EXPECTED_BUILD_ID, "Desktop executable does not match the current source/assets; finish rebuilding before running checks."
             assert initial["sessions"][0]["id"] == "local"
+            assert js("return document.querySelector('.queue-toggle').getAttribute('aria-expanded')") == "true"
+
             listing = api("list", {"sessionId": "local", "path": str(source)})
             assert {item["name"] for item in listing["entries"]} == {"notes.txt", "binary.bin"}
             api("mkdir", {"location": {"sessionId": "local", "path": str(target)}, "name": "folder"})
@@ -193,17 +195,151 @@ with tempfile.TemporaryDirectory(prefix="cosy-tauri-smoke-") as directory:
                 remembered_input.update(name="Remembered loopback", password="test-password", rememberPassword=True)
                 remembered = api("saveProfile", remembered_input)
                 assert remembered["hasPassword"]
-                remembered_session = api("connect", {"profileId": remembered["id"]})
-                api("disconnect", remembered_session["id"])
+                def reload_profiles():
+                    js("location.reload();")
+                    for _ in range(100):
+                        if js("return !!window.cosy && Array.from(document.querySelectorAll('.saved-connections .place')).some(el=>el.textContent.includes('Remembered loopback'));"):
+                            return
+                        time.sleep(0.1)
+                    raise AssertionError("Remembered profile did not appear after restart")
+
+                def wait_for_connection(side):
+                    for _ in range(100):
+                        if js("return !document.querySelector('[role=dialog]') && document.querySelector('[aria-label=\"" + side + " connection\"]').selectedOptions[0].textContent.includes('Remembered loopback');"):
+                            return
+                        time.sleep(0.1)
+                    raise AssertionError(js("return document.body.innerText"))
+
+                reload_profiles()
+                js("Array.from(document.querySelectorAll('.saved-connections .place')).find(el=>el.textContent.includes('Remembered loopback')).click();")
+                wait_for_connection("right")
+                assert js("return document.querySelector('[aria-label=\"left connection\"]').value") == "local"
+                assert not js("return !!document.querySelector('input[type=password]')")
+                # Explicit pane selection still overrides the sidebar's right-pane default.
+                js("const el=document.querySelector('[aria-label=\"left connection\"]'); el.value='connect:'+arguments[0]; el.dispatchEvent(new Event('change',{bubbles:true}));", [remembered["id"]])
+                wait_for_connection("left")
+                for opened in api("initialise")["sessions"]:
+                    if opened.get("profileId") == remembered["id"]:
+                        api("disconnect", opened["id"])
+                # A rejected stored credential falls back to a usable prompt.
+                api("saveProfile", dict(remembered_input, id=remembered["id"], password="wrong-fixture-password"))
+                reload_profiles()
+                js("Array.from(document.querySelectorAll('.saved-connections .place')).find(el=>el.textContent.includes('Remembered loopback')).click();")
+                for _ in range(100):
+                    if js("return !!document.querySelector('input[type=password]:not(:disabled)') && !!document.querySelector('[role=alert]');"):
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise AssertionError("Rejected saved password did not offer an override")
+                js("const el=document.querySelector('input[type=password]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'test-password'); el.dispatchEvent(new Event('input',{bubbles:true}));")
+                js("document.querySelector('input[type=password]').form.requestSubmit();")
+                wait_for_connection("right")
+                for opened in api("initialise")["sessions"]:
+                    if opened.get("profileId") == remembered["id"]:
+                        api("disconnect", opened["id"])
                 api("deleteProfile", remembered["id"])
                 assert "test-password" not in (user_data / "connections.json").read_text()
+                assert "wrong-fixture-password" not in (user_data / "connections.json").read_text()
+                js("location.reload();")
+                time.sleep(0.3)
 
+            # Exercise the visible Edit action with JSON larger than the former 2 MiB limit.
+            large_json = json.dumps({"enabled": True, "items": ["x" * 80] * 40000}, indent=2) + "\n"
+            json_file = source / "settings.json"
+            json_file.write_bytes(large_json.encode())
+            (source / "other.txt").write_bytes(b"another working copy\n")
             # Drive the actual path input so the screenshot shows fixture data.
             js("const el=document.querySelector('[aria-label=\"left path\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,arguments[0]); el.dispatchEvent(new Event('input',{bubbles:true}));", [str(source)])
             element = request("POST", prefix + "/element", {"using": "css selector", "value": '[aria-label="left path"]'})
             element_id = element["element-6066-11e4-a52e-4f735466cecf"]
             request("POST", prefix + f"/element/{element_id}/value", {"text": "\ue007"})
             time.sleep(0.3)
+
+            def wait_ui(script):
+                for _ in range(200):
+                    if js(script):
+                        return
+                    time.sleep(0.1)
+                raise AssertionError(js("return document.body.innerText.slice(-5000)"))
+
+            def edit_file(name):
+                js("document.querySelectorAll('.file-pane')[0].querySelectorAll('tbody input:checked').forEach(el=>el.click());")
+                js("Array.from(document.querySelectorAll('.file-pane')[0].querySelectorAll('tbody input')).find(el=>el.getAttribute('aria-label')==='Select '+arguments[0]).click();", [name])
+                js("document.querySelector('[aria-label=\"left edit selected file\"]').click();")
+                wait_ui("return !!document.querySelector('[aria-label=\"Text editor\"] textarea');")
+
+            edit_file("settings.json")
+            assert js("return document.querySelector('[aria-label=\"Text editor\"] textarea').value.length") > 2 * 1024 * 1024
+            edited_json = large_json.replace('"enabled": true', '"enabled": false', 1)
+            js("const el=document.querySelector('[aria-label=\"Text editor\"] textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,arguments[0]); el.dispatchEvent(new Event('input',{bubbles:true}));", [edited_json])
+            wait_ui("return document.querySelector('.editor-status').textContent.includes('Working copy saved locally');")
+            js("Array.from(document.querySelectorAll('.editor-actions button')).find(el=>el.textContent.includes('Save to disk')).click();")
+            wait_ui("return document.querySelector('.editor-status').textContent.includes('Saved to disk');")
+            assert json_file.read_bytes() == edited_json.encode()
+            js("document.querySelector('[aria-label=\"Hide editor (keep working copies)\"]').click();")
+            assert not js("return !!document.querySelector('[aria-label=\"Text editor\"]');")
+            assert any(doc["name"] == "settings.json" for doc in api("initialise")["documents"])
+            edit_file("other.txt")
+            # Closing a background tab must not hide the editor or change the active tab.
+            js("document.querySelector('[aria-label=\"Close settings.json\"]').click();")
+            wait_ui("return !!document.querySelector('[aria-label=\"Text editor\"]') && document.querySelectorAll('.editor-tab').length===1;")
+            assert js("return document.querySelector('.editor-tab.selected').textContent") == "other.txt"
+            js("document.querySelector('[aria-label=\"Hide editor (keep working copies)\"]').click();")
+            edit_file("settings.json")
+            # Closing the active tab selects its neighbour; only the last tab closes the window.
+            js("document.querySelector('[aria-label=\"Close settings.json\"]').click();")
+            wait_ui("return !!document.querySelector('[aria-label=\"Text editor\"]') && document.querySelectorAll('.editor-tab').length===1;")
+            assert js("return document.querySelector('.editor-tab.selected').textContent") == "other.txt"
+            js("document.querySelector('[aria-label=\"Close other.txt\"]').click();")
+            wait_ui("return !document.querySelector('[aria-label=\"Text editor\"]');")
+            assert not api("initialise")["documents"]
+            # A long remote listing must retain its viewport through refreshes and mutations.
+            for index in range(400):
+                (remote_root / f"scroll-{index:04}.txt").write_bytes(b"remote text\n")
+            (remote_root / "child").mkdir()
+            js("Array.from(document.querySelectorAll('.saved-connections .place')).find(el=>el.textContent.includes('Loopback SFTP')).click();")
+            wait_ui("return !!document.querySelector('input[type=password]');")
+            js("const el=document.querySelector('input[type=password]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'test-password'); el.dispatchEvent(new Event('input',{bubbles:true}));")
+            js("document.querySelector('input[type=password]').form.requestSubmit();")
+            wait_ui("return !document.querySelector('[role=dialog]') && document.querySelector('[aria-label=\"right connection\"]').value!=='local' && !document.querySelector('[aria-label=\"right refresh\"]').disabled;")
+            js("document.querySelector('[aria-label=\"right files\"]').scrollTop=4500;")
+            time.sleep(0.15)
+            previous_scroll = js("return document.querySelector('[aria-label=\"right files\"]').scrollTop;")
+            assert previous_scroll > 4000
+
+            def assert_remote_scroll():
+                wait_ui("return !document.querySelector('[role=dialog]') && !document.querySelector('[aria-label=\"right refresh\"]').disabled;")
+                actual = js("return document.querySelector('[aria-label=\"right files\"]').scrollTop;")
+                assert abs(actual - previous_scroll) <= 35, (previous_scroll, actual)
+
+            js("document.querySelector('[aria-label=\"right refresh\"]').click();")
+            assert_remote_scroll()
+            js("Array.from(document.querySelectorAll('.file-pane')[1].querySelectorAll('.pane-actions button')).find(el=>el.textContent.includes('New folder')).click();")
+            js("const el=document.querySelector('[role=dialog] input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'created-while-scrolled'); el.dispatchEvent(new Event('input',{bubbles:true}));")
+            js("document.querySelector('[role=dialog] form').requestSubmit();")
+            assert_remote_scroll()
+            assert (remote_root / "created-while-scrolled").is_dir()
+            previous_scroll = js("return document.querySelector('[aria-label=\"right files\"]').scrollTop;")
+            visible_file = js("const pane=document.querySelector('[aria-label=\"right files\"]'); const row=Array.from(pane.querySelectorAll('tbody tr')).find(row=>row.querySelector('.file-name') && row.getBoundingClientRect().top>pane.getBoundingClientRect().top+40); row.querySelector('.file-name').click(); return row.querySelector('.file-name').textContent;")
+            js("document.querySelectorAll('.file-pane')[1].querySelector('[title=\"Rename selected item\"]').click();")
+            js("const el=document.querySelector('[role=dialog] input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'renamed-'+arguments[0]); el.dispatchEvent(new Event('input',{bubbles:true}));", [visible_file])
+            js("document.querySelector('[role=dialog] form').requestSubmit();")
+            assert_remote_scroll()
+            assert (remote_root / ("renamed-" + visible_file)).exists()
+            previous_scroll = js("return document.querySelector('[aria-label=\"right files\"]').scrollTop;")
+            js("const pane=document.querySelector('[aria-label=\"right files\"]'); const row=Array.from(pane.querySelectorAll('tbody tr')).find(row=>row.querySelector('.file-name') && row.getBoundingClientRect().top>pane.getBoundingClientRect().top+40); row.querySelector('.file-name').click();")
+            js("document.querySelector('[aria-label=\"right edit selected file\"]').click();")
+            wait_ui("return !!document.querySelector('[aria-label=\"Text editor\"] textarea');")
+            js("const el=document.querySelector('[aria-label=\"Text editor\"] textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,arguments[0]); el.dispatchEvent(new Event('input',{bubbles:true}));", ["saved without losing position\n"])
+            wait_ui("return document.querySelector('.editor-status').textContent.includes('Working copy saved locally');")
+            js("Array.from(document.querySelectorAll('.editor-actions button')).find(el=>el.textContent.includes('Save to server')).click();")
+            wait_ui("return document.querySelector('.editor-status').textContent.includes('Saved to server');")
+            js("document.querySelector('.editor-tab .icon-button').click();")
+            assert_remote_scroll()
+            js("const el=document.querySelector('[aria-label=\"right path\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'/child'); el.dispatchEvent(new Event('input',{bubbles:true}));")
+            js("document.querySelector('[aria-label=\"right path\"]').form.requestSubmit();")
+            wait_ui("return document.querySelector('[aria-label=\"right path\"]').value==='/child' && !document.querySelector('[aria-label=\"right refresh\"]').disabled;")
+            assert js("return document.querySelector('[aria-label=\"right files\"]').scrollTop;") == 0
             accessibility = {}
             for theme in ("dark", "light"):
                 if js("return document.documentElement.dataset.theme") != theme:
@@ -220,11 +356,11 @@ with tempfile.TemporaryDirectory(prefix="cosy-tauri-smoke-") as directory:
             request("POST", prefix + "/window/rect", {"width": 980, "height": 680})
             time.sleep(0.25)
             (ARTIFACTS / "compact.png").write_bytes(base64.b64decode(request("GET", prefix + "/screenshot")))
-            report = {"version": initial["version"], "buildId": initial["buildId"], "canStorePasswords": initial["canStorePasswords"], "accessibility": accessibility, "checks": ["native startup", "local browse/mkdir/rename", "unsafe path rejection",
-                      "queued binary transfer", "draft recovery", "conflict refusal", "stale review refusal", "review without save", "explicit save",
-                      "session-only profiles", "pinned SFTP connection", "connected trust removal refusal", "remote editor save", "session-preserving reconnect", "pinned self-signed FTPS reads and queued uploads with required TLS 1.3 session resumption", "connected FTPS trust removal refusal", "new palette and logo screenshots"]}
+            report = {"version": initial["version"], "buildId": initial["buildId"], "canStorePasswords": initial["canStorePasswords"], "accessibility": accessibility, "checks": ["native startup", "expanded queue default", "local browse/mkdir/rename", "unsafe path rejection",
+                      "queued binary transfer", "draft recovery", "visible Edit action opens and saves JSON above 2 MiB", "hide editor retains working copies", "closing active/background editor tabs preserves remaining tabs", "conflict refusal", "stale review refusal", "review without save", "explicit save",
+                      "session-only profiles", "pinned SFTP connection", "connected trust removal refusal", "remote editor save", "session-preserving reconnect", "pinned self-signed FTPS reads and queued uploads with required TLS 1.3 session resumption", "connected FTPS trust removal refusal", "new palette and logo screenshots", "remote scroll retained after refresh, mkdir, rename and editor save", "new directory starts at top"]}
             if initial["canStorePasswords"]:
-                report["checks"].append("OS credential save/retrieve/delete without plaintext storage")
+                report["checks"].extend(["OS credential save/retrieve/delete without plaintext storage", "saved-password sidebar connection without a password prompt", "right-pane default and explicit left-pane override", "rejected saved-password recovery with session-only override"])
             (ARTIFACTS / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
             print(json.dumps(report, indent=2))
         finally:

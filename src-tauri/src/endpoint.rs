@@ -417,18 +417,26 @@ impl Endpoint {
     pub fn read_text(&mut self, path: &str) -> Result<(String, String, Option<u32>)> {
         let entry = self.stat(path)?;
         ensure!(
-            entry.kind == "file" && entry.size <= 2 * 1024 * 1024,
-            "Only regular UTF-8 text files up to 2 MiB can be edited"
+            entry.kind == "file",
+            "Only regular UTF-8 text files can be edited"
+        );
+        ensure!(
+            entry.size <= MAX_EDIT_BYTES as u64,
+            "This file exceeds the editor's 10 MiB limit"
         );
         let mut bytes = Vec::new();
         let mut reader = self.reader(path)?;
         Read::by_ref(&mut reader)
-            .take(2 * 1024 * 1024 + 1)
+            .take(MAX_EDIT_BYTES as u64 + 1)
             .read_to_end(&mut bytes)?;
         reader.finish()?;
         ensure!(
-            bytes.len() <= 2 * 1024 * 1024 && !bytes.contains(&0),
-            "Only UTF-8 text up to 2 MiB is supported"
+            bytes.len() <= MAX_EDIT_BYTES,
+            "This file exceeds the editor's 10 MiB limit"
+        );
+        ensure!(
+            !bytes.contains(&0),
+            "This file contains NUL bytes and cannot be edited as plain text"
         );
         let revision = digest(&bytes);
         Ok((

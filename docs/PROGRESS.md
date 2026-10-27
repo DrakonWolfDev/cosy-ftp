@@ -1,6 +1,29 @@
 # Implementation progress
 
-Updated 27 October 2026. The working tree is a **0.4.3 Rust + Tauri development preview**, not a completed v1. The 0.3.0 verification below describes the Electron prototype. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+Updated 27 October 2026. The working tree is a **0.4.6 Rust + Tauri development preview**, not a completed v1. The 0.3.0 verification below describes the Electron prototype. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+
+## 0.4.6 Preserve the file-list position
+
+- Refreshes retain the existing rows and virtual-list spacers while loading, preventing the table from collapsing and resetting the scrollbar. The refreshing table is inert and marked busy until loading finishes. Existing folder/filter/sort navigation resets are retained.
+- Native regression checks use a 400-file SFTP directory scrolled more than 4,000 pixels down, then refresh, create a folder, rename a file and save an edited file. Position stays in the same area, allowing a one-row browser scroll-anchor adjustment when entries move. Entering a different folder starts at the top.
+- Windows and Linux `.deb` desktop checks pass, including editor workflows and both-theme accessibility. TypeScript and the production interface build pass.
+- AppImage passes the same workflows and both-theme accessibility on retry after an initial WebDriver connection dropped during a save. Final package checks share the current embedded source/asset fingerprint. Updated 0.4.6 installers and checksums are in `release/tauri/`.
+
+## 0.4.5 Discoverable editor and larger text files
+
+- Added a visible Edit action in each pane for one selected regular file. Double-click still opens text files and folders; transfers remain explicit.
+- Closing a background editor tab keeps the current tab visible. Closing the active tab selects its neighbour; only closing the last working copy hides the editor. Tab closing waits for pending recovery writes. The window's X is labelled as hiding the editor while keeping working copies.
+- Raised the UTF-8 text limit from 2 to 10 MiB across reads, drafts, recovery validation and the interface. JSON already uses the plain text editor; the user's 2.4 MB file exceeded the previous size limit. Size, NUL-byte and invalid-UTF-8 failures now have distinct read errors.
+- Backend tests verify a larger JSON file, the exact 10 MiB boundary and refusal above it. All 25 Windows / 26 Linux backend tests and Linux Clippy pass. Windows desktop checks open/edit/save a 3.4 MB JSON file through the visible Edit action, verify hiding/reopening working copies and exercise both active/background tab closure. Compact-window Edit controls and both-theme accessibility pass.
+- Both Linux `.deb` and AppImage pass the same editor workflows with matching source/asset fingerprints and no accessibility violations in either theme. Updated 0.4.5 packages and checksums are under `release/tauri/`.
+
+## 0.4.4 Connection defaults and remembered passwords
+
+- Saved credentials are used automatically instead of showing a blank password prompt on every connection. Unavailable/rejected credentials fall back to an explicit password override. Concurrent connect attempts are guarded. Profile forms require a password when remembering one without an existing reusable credential.
+- Sidebar connections default to the right pane. Explicit connection selection inside either pane still targets that pane.
+- Restored the transfer queue's expanded default while keeping its manual toggle and automatic expansion for active/failed jobs. Dark remains the default; light and saved appearance choices are retained.
+- The user reports successful Linux Mint use. The saved-password UI path, rejection/retry and pane-targeting checks pass with Windows Credential Manager. Linux package checks use session-only credentials because the WSL test environment has no Secret Service; Linux keyring persistence remains unverified here.
+- Final 0.4.4 Windows, Linux `.deb` and AppImage desktop workflows pass with matching source/asset fingerprints and no accessibility violations in either theme. Production UI build and TypeScript checks pass. Local installers, the versioned Windows executable and checksums are under `release/tauri/`.
 
 ## 0.4.3 More room for files
 

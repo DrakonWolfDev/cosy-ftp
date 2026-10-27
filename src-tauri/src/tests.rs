@@ -29,7 +29,7 @@ fn validates_profiles_and_names() {
     assert!(safe_name("notes — final.txt", true).is_ok());
     assert!(validate_content("valid UTF-8 🦀").is_ok());
     assert!(validate_content("binary\0data").is_err());
-    assert!(validate_content(&"x".repeat(2 * 1024 * 1024 + 1)).is_err());
+    assert!(validate_content(&"x".repeat(MAX_EDIT_BYTES + 1)).is_err());
     let mut profile = profile("ftp", 21);
     profile.allow_insecure = false;
     assert!(profile.validate().is_err());
@@ -709,4 +709,28 @@ fn ftps_requires_resumption(version: &str) {
         events.lines().filter(|line| *line == "resumed").count() >= 9,
         "{events}"
     );
+}
+
+#[test]
+fn editor_accepts_large_json_and_rejects_files_beyond_its_limit() {
+    let temp = tempfile::tempdir().unwrap();
+    let file = temp.path().join("config.json");
+    let text = serde_json::to_string(
+        &serde_json::json!({"payload": "x".repeat(3 * 1024 * 1024), "enabled": true}),
+    )
+    .unwrap();
+    fs::write(&file, &text).unwrap();
+    let (loaded, _, _) = Endpoint::Local.read_text(file.to_str().unwrap()).unwrap();
+    assert_eq!(loaded, text);
+    assert!(validate_content(&loaded).is_ok());
+    let at_limit = "x".repeat(MAX_EDIT_BYTES);
+    fs::write(&file, &at_limit).unwrap();
+    assert!(Endpoint::Local.read_text(file.to_str().unwrap()).is_ok());
+    assert!(validate_content(&at_limit).is_ok());
+    fs::write(&file, "x".repeat(MAX_EDIT_BYTES + 1)).unwrap();
+    assert!(Endpoint::Local
+        .read_text(file.to_str().unwrap())
+        .unwrap_err()
+        .to_string()
+        .contains("10 MiB"));
 }

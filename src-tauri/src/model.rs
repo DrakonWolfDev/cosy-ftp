@@ -1,3 +1,4 @@
+pub const MAX_EDIT_BYTES: usize = 10 * 1024 * 1024;
 use anyhow::{bail, ensure, Result};
 use serde::{Deserialize, Serialize};
 use std::{
