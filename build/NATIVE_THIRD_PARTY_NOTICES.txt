@@ -1,5 +1,5 @@
-Cosy FTP 0.4.9-beta.1 — native dependency notices (x86_64-unknown-linux-gnu)
-Matching sources: https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.9-beta.1
+Cosy FTP 0.4.9 — native dependency notices (x86_64-unknown-linux-gnu)
+Matching sources: https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.9
 Download the platform sources archive alongside the installers. Original licences remain applicable.
 
 ========================================================================
