@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.backend.json",
-  "compilerOptions": { "noEmit": true },
-  "include": ["electron", "shared", "tests", "scripts/*.ts"]
-}

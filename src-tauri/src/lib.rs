@@ -302,11 +302,14 @@ impl Runtime {
                     for name in &names {
                         safe_name(name, endpoint.remote())?;
                     }
-                    if !confirm(app, "Permanently delete selected items?", &format!("Delete {} items in {directory}?\n\nThis cannot be undone. Folders must be empty. Symbolic links are removed without following their targets.", names.len()), "Delete permanently") { return Ok(json!(false)) }
+                    if !confirm(app, "Permanently delete selected items?", &format!("Delete {} items in {directory}?\n\nThis cannot be undone. Non-empty folders and their contents are deleted recursively. Symbolic links are removed without following their targets.", names.len()), "Delete permanently") { return Ok(json!(false)) }
+                    let mut plan = Vec::new();
                     for name in names {
                         let path = join(&directory, &name, endpoint.remote())?;
-                        let entry = endpoint.stat(&path)?;
-                        endpoint.remove(&path, entry.kind == "directory")?;
+                        endpoint.plan_remove(path, 0, &mut plan)?;
+                    }
+                    for (path, directory) in plan {
+                        endpoint.remove(&path, directory)?;
                     }
                     Ok(json!(true))
                 } else {

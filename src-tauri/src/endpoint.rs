@@ -19,6 +19,8 @@ pub enum Endpoint {
     Sftp(SftpEndpoint),
     Ftp(ImplFtpStream<Stream>),
 }
+const MAX_TREE_DEPTH: usize = 100;
+const MAX_TREE_ITEMS: usize = 100_000;
 pub trait FileStream: Read + Write + Send {
     fn finish(self: Box<Self>) -> Result<()>;
 }
@@ -323,6 +325,32 @@ impl Endpoint {
                 }
             }
         };
+        Ok(())
+    }
+    pub fn plan_remove(
+        &mut self,
+        path: String,
+        depth: usize,
+        plan: &mut Vec<(String, bool)>,
+    ) -> Result<()> {
+        ensure!(
+            depth <= MAX_TREE_DEPTH && plan.len() < MAX_TREE_ITEMS,
+            "Directory tree exceeds the safety limit (100 levels / 100,000 items)"
+        );
+        let entry = self.stat(&path)?;
+        if entry.kind == "directory" {
+            for child in self.list(&path)? {
+                self.plan_remove(join(&path, &child.name, self.remote())?, depth + 1, plan)?;
+            }
+            ensure!(
+                plan.len() < MAX_TREE_ITEMS,
+                "Directory tree exceeds the safety limit (100 levels / 100,000 items)"
+            );
+            plan.push((path, true));
+        } else {
+            // stat/list use lstat semantics, so links are removed rather than followed.
+            plan.push((path, false));
+        }
         Ok(())
     }
     pub fn rename(&mut self, from: &str, to: &str, replace: bool) -> Result<()> {

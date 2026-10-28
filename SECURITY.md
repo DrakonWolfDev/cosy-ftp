@@ -1,6 +1,6 @@
 # Security policy
 
-Cosy FTP is a development preview. Security fixes target the current main branch and latest preview; older previews are not maintained separately.
+Cosy FTP is in beta. Security fixes target the current main branch and latest beta; older prereleases are not maintained separately.
 
 Please report suspected vulnerabilities through [GitHub's private vulnerability reporting](https://github.com/DrakonWolfDev/cosy-ftp/security/advisories/new). Do not post credentials, connection profiles, recovery drafts or exploitable details in a public issue. If private reporting is unavailable, use the contact link on [Wolf Forge](https://wolf-forge.co.uk) and ask for a private reporting channel before sending sensitive details.
 

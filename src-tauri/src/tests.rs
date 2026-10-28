@@ -39,6 +39,32 @@ fn validates_profiles_and_names() {
     assert!(profile.validate().is_err());
 }
 #[test]
+fn recursive_delete_plans_children_first_and_does_not_follow_links() {
+    let temp = tempfile::tempdir().unwrap();
+    let tree = temp.path().join("tree");
+    let outside = temp.path().join("outside.txt");
+    fs::create_dir_all(tree.join("nested")).unwrap();
+    fs::write(tree.join("nested/file.txt"), "inside").unwrap();
+    fs::write(&outside, "outside").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, tree.join("link")).unwrap();
+
+    let mut endpoint = Endpoint::Local;
+    let mut plan = Vec::new();
+    endpoint
+        .plan_remove(tree.to_string_lossy().into_owned(), 0, &mut plan)
+        .unwrap();
+    assert_eq!(
+        plan.last(),
+        Some(&(tree.to_string_lossy().into_owned(), true))
+    );
+    for (path, directory) in plan {
+        endpoint.remove(&path, directory).unwrap();
+    }
+    assert!(!tree.exists());
+    assert_eq!(fs::read_to_string(outside).unwrap(), "outside");
+}
+#[test]
 fn atomic_settings_roundtrip_and_corruption_preservation() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("connections.json");

@@ -1,6 +1,6 @@
 {
   "name": "cosy-ftp",
-  "version": "0.4.8",
+  "version": "0.4.9-beta.1",
   "private": true,
   "description": "A calm two-pane file transfer client for Windows and Linux",
   "homepage": "https://github.com/DrakonWolfDev/cosy-ftp",
@@ -20,43 +20,28 @@
     "dev:ui": "vite --host 127.0.0.1",
     "build:ui": "node scripts/third-party-notices.cjs && tsc --noEmit && vite build",
     "build": "tauri build --no-bundle",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
+    "typecheck": "tsc --noEmit",
     "test": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "test:legacy": "tsx --test tests/*.test.ts",
     "check": "npm run typecheck && npm test && npm run build:ui && cargo check --manifest-path src-tauri/Cargo.toml",
     "package": "tauri build",
     "dist": "tauri build",
     "icons": "node scripts/generate-icons.cjs",
-    "legacy:build": "tsc -p tsconfig.backend.json && vite build && node scripts/third-party-notices.cjs --legacy && node scripts/build-info.cjs",
-    "legacy:dev": "npm run legacy:build && electron dist-electron/electron/main.js",
-    "legacy:test:desktop": "npm run legacy:build && tsx scripts/desktop-smoke.ts",
-    "legacy:test:packaged": "tsx scripts/desktop-smoke.ts --packaged",
-    "legacy:test:stress": "tsx scripts/stress.ts",
     "test:protocol": "cargo test --manifest-path src-tauri/Cargo.toml -- --ignored --test-threads=1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.14.0",
     "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@types/ssh2": "^1.15.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "basic-ftp": "^6.2.3",
-    "electron": "^45.0.0",
     "lucide-react": "^0.468.0",
-    "playwright": "^1.56.0",
-    "prettier": "^3.9.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sharp": "^0.35.5",
-    "ssh2": "^1.17.0",
-    "tsx": "^4.20.0",
     "typescript": "^5.9.0",
-    "vite": "^7.2.0",
-    "zod": "^4.1.0"
+    "vite": "^7.2.0"
   }
 }

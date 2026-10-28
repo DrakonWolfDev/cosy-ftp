@@ -2,7 +2,7 @@
 
 <img src="build/icon.svg" alt="Cosy FTP transfer logo" width="72" height="72">
 
-A calm two-pane file transfer client for Windows and Linux. **Development preview — not a finished v1.**
+A calm two-pane file transfer client for Windows and Linux. **Beta — not yet a finished v1.**
 
 Browse local folders or independent SFTP, explicit FTPS and FTP sessions in either pane. Copy files and folders through a queue, move files on the same server, and edit remote UTF-8 text with explicit upload and local recovery copies. Choose a muted dark or warm light theme.
 
@@ -10,7 +10,7 @@ Browse local folders or independent SFTP, explicit FTPS and FTP sessions in eith
 
 ## Project status
 
-The latest working source is the 0.4.8 development preview. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; verification of subsequent changes is recorded separately in [the progress notes](docs/PROGRESS.md). Published previews and matching sources are available from [GitHub Releases](https://github.com/DrakonWolfDev/cosy-ftp/releases); platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
+The latest working source is the 0.4.9 beta. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; the 0.4.9 recursive-delete hotfix was confirmed on Linux Mint before release preparation. Verification is recorded in [the progress notes](docs/PROGRESS.md). Published beta releases and matching sources are available from [GitHub Releases](https://github.com/DrakonWolfDev/cosy-ftp/releases); platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
 
 ## Licence and contributions
 
@@ -64,7 +64,7 @@ npm run dist
 python -m pip install -r tests/requirements.txt
 ```
 
-Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tests use temporary files and loopback-only servers with disposable credentials. The old TypeScript service tests remain available as `npm run test:legacy`; their results establish prototype behaviour, not Rust parity.
+Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tests use temporary files and loopback-only servers with disposable credentials. The removed Electron prototype and its test suite remain available in Git history; current verification targets the Rust implementation.
 
 `package` and `dist` create Windows NSIS or Linux AppImage/deb/rpm packages under `src-tauri/target/release/bundle/` on the matching operating system. Preview packages are unsigned. Old files under `release/` are Electron builds and are not refreshed by Tauri commands.
 
@@ -78,10 +78,10 @@ Set `COSY_PYTHON=python` on Windows if Python is not available as `python3`. Tes
 - [Reliability limits and recovery](docs/RELIABILITY.md)
 - [Original concept](PROJECT_IDEAS.md)
 
-The working tree uses Rust + Tauri with a React/TypeScript interface. The Electron implementation remains as a reference for parity testing. Native qualification and footprint measurements are tracked in the [migration notes](docs/TAURI_MIGRATION.md).
+The working tree uses Rust + Tauri with a React/TypeScript interface. The obsolete Electron implementation and its Node-only protocol stack were removed after native parity verification. Native qualification and footprint measurements are tracked in the [migration notes](docs/TAURI_MIGRATION.md).
 
 ## About and updates
 
-Open **About Cosy FTP** in the sidebar for the Wolf Forge project identity, app version and Wolf Update controls. Automatic checks run at most once a day and can be disabled. Manual checks include published previews. Updates open the official project page for you to download and install; the app does not install updates itself.
+Open **About Cosy FTP** in the sidebar for the Wolf Forge project identity, app version and Wolf Update controls. Automatic checks run at most once a day and can be disabled. Manual checks include published betas. Updates open the official project page for you to download and install; the app does not install updates itself.
 
 See [release preparation](docs/RELEASE.md) for tagged GitHub Actions builds and website download integration. Release publication requires passing native checks, notices and corresponding-source archives; the website is updated only after all assets exist.

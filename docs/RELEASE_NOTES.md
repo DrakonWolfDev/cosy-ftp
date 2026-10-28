@@ -1,3 +1,13 @@
+# 0.4.9 beta.1 — recursive-delete hotfix
+
+- Non-empty folders can now be deleted recursively after explicit confirmation.
+- Delete planning covers the full selection before removal, with 100-level and 100,000-item safety limits.
+- Symbolic links are removed without following their targets.
+- Removed the obsolete Electron runtime implementation, legacy Node protocol dependencies and stale development scripts. Existing Electron profiles, fingerprints and recovery copies can still be imported once.
+- Promoted the product status from development preview to beta.
+
+This remains an unsigned beta. Deletion is permanent and folder operations are not transactions; use backed-up data while testing.
+
 # 0.4.7 - source preview and release preparation
 
 27 October 2026. Public installer downloads are not yet enabled.
@@ -43,6 +53,6 @@ First working Cosy FTP desktop implementation, 25 October 2026.
 - UTF-8 editing with explicit save/upload, conflict protection and local draft recovery.
 - Windows/Linux preview packages, protocol tests, desktop automation and accessibility checks.
 
-This preview is unsigned. Existing destinations are protected unless replacement is confirmed. Some servers refuse staged replacement. Folder operations are not transactions. Delete supports files, links and empty directories. SSH keys/agents, automatic resume, full metadata preservation and direct server-to-server transfers are not included.
+This preview is unsigned. Existing destinations are protected unless replacement is confirmed. Some servers refuse staged replacement. Folder operations are not transactions. Confirmed deletes support files, links and bounded recursive folder removal. SSH keys/agents, automatic resume, full metadata preservation and direct server-to-server transfers are not included.
 
-Electron's footprint still needs review against the lightweight goal. Validate important workflows with backed-up data before relying on the preview for production files. See [PROGRESS.md](PROGRESS.md), [SCOPE.md](SCOPE.md) and [RELIABILITY.md](RELIABILITY.md).
+The application now ships on Rust/Tauri without the Electron runtime. Validate important workflows with backed-up data before relying on the preview for production files. See [PROGRESS.md](PROGRESS.md), [SCOPE.md](SCOPE.md) and [RELIABILITY.md](RELIABILITY.md).

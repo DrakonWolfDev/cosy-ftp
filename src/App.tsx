@@ -1921,7 +1921,7 @@ export default function App() {
             )}
           />
           <div className="sidebar-version">
-            COSY FTP <span>v{initial.version} · preview</span>
+            COSY FTP <span>v{initial.version} · beta</span>
           </div>
         </div>
       </aside>

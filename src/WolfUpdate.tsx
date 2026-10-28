@@ -100,7 +100,7 @@ export function WolfUpdate({
               <div>
                 <p className="about-eyebrow">FILE TRANSFERS, A LITTLE CALMER</p>
                 <h3>Cosy FTP</h3>
-                <p>Version {version} · Development preview</p>
+                <p>Version {version} · Beta</p>
               </div>
             </div>
             <p>
@@ -115,7 +115,7 @@ export function WolfUpdate({
             <section className="about-updates" aria-labelledby="wolf-update-heading">
               <h3 id="wolf-update-heading">Wolf Update</h3>
               <p>
-                Checks the official Cosy FTP GitHub releases, including previews. View update opens
+                Checks the official Cosy FTP GitHub releases, including betas. View update opens
                 the Wolf Forge project page. Downloads and installation stay in your hands.
               </p>
               <label>

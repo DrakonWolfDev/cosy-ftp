@@ -2,13 +2,10 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 async function main() {
-  const legacy = process.argv.includes('--legacy');
   const seen = new Set();
   const sections = [
     'Cosy FTP — bundled JavaScript library notices',
-    legacy
-      ? 'Electron/Chromium notices are also supplied by the Electron distribution.'
-      : 'Current Rust/Tauri frontend. Native dependency requirements are tracked in THIRD_PARTY.md.',
+    'Current Rust/Tauri frontend. Native dependency requirements are tracked in THIRD_PARTY.md.',
   ];
   async function visit(name, from = process.cwd()) {
     let entry;
@@ -48,9 +45,7 @@ async function main() {
     }).sort())
       await visit(dependency, directory);
   }
-  for (const name of legacy
-    ? ['basic-ftp', 'ssh2', 'zod', 'react', 'react-dom', 'lucide-react']
-    : ['react', 'react-dom', 'lucide-react', '@tauri-apps/api'])
+  for (const name of ['react', 'react-dom', 'lucide-react', '@tauri-apps/api'])
     await visit(name);
   await fs.mkdir('build', { recursive: true });
   await fs.writeFile('build/THIRD_PARTY_NOTICES.txt', `${sections.join('\n').trimEnd()}\n`);

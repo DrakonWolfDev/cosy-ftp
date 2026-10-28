@@ -1,6 +1,12 @@
 # Implementation progress
 
-Updated 27 October 2026. The working tree is a **0.4.7 Rust + Tauri development preview**, not a completed v1. The 0.3.0 verification below describes the Electron prototype. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+Updated 28 October 2026. The working tree is the **0.4.9 Rust + Tauri beta**, not a completed v1. The 0.3.0 verification below describes the Electron prototype. Acceptance criteria are in [MILESTONES.md](../MILESTONES.md).
+
+## 0.4.9 beta hotfix
+
+- Added bounded recursive deletion for confirmed non-empty folders. The full selection is planned before deletion, recursion is limited to 100 levels / 100,000 items, and symbolic links are removed without following their targets.
+- Removed the obsolete Electron implementation, legacy Node protocol stack and unused development scripts after native parity verification. The one-time Electron data importer remains for existing users.
+- Linux Mint package installation and the recursive-delete workflow were confirmed before release preparation. The full native/unit/frontend check suite passes locally.
 
 ## 0.4.7 Release preparation, About and Wolf Update
 
@@ -103,7 +109,7 @@ Updated 27 October 2026. The working tree is a **0.4.7 Rust + Tauri development 
 | 2. Foundation          | Working prototype validated           | Windows and Ubuntu builds, real SFTP/FTP/FTPS loopback transfers, independent SFTP interoperability, and packaged desktop workflows. Electron footprint still needs product review.               |
 | 3. Two-pane interface  | Implemented                           | Independent local/remote panes, paths, filter, hidden files, multi-selection, bounded row rendering, saved-connections sidebar and two themes.                                                    |
 | 4. Secure connections  | Implemented; field validation pending | Native SSH trust and changed-key refusal; FTPS certificate/hostname checks; encrypted passwords on Windows; safe session-only fallback on headless Linux. Other Linux keyrings remain unverified. |
-| 5. Everyday operations | Implemented within preview scope      | Upload/download, recursive copies, rename, create folder, delete files/links/empty folders, queue, cancellation and whole-operation retry. No recursive delete or automatic resume.               |
+| 5. Everyday operations | Implemented within preview scope      | Upload/download, recursive copies, rename, create folder, recursively delete confirmed selections, queue, cancellation and whole-operation retry. No automatic resume.                           |
 | 6. Two remote panes    | Implemented                           | Real streamed remote copies, mixed FTP/SFTP transfers, independent sessions, and same-server rename/moves.                                                                                        |
 | 7. Remote editing      | Implemented                           | UTF-8 editor, explicit upload, content conflicts, ordinary permission preservation, local recovery, reconnect binding and failed-recovery-write protection.                                       |
 | 8. Hardening           | In progress                           | Automated protocol, desktop, accessibility and stress checks pass. Long-duration networks, more servers, manual accessibility and full metadata semantics remain open.                            |

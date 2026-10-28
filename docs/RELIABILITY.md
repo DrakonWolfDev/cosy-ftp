@@ -1,4 +1,4 @@
-# Reliability, recovery and preview limits
+# Reliability, recovery and beta limits
 
 The working tree now uses Rust + Tauri. See [TAURI_MIGRATION.md](TAURI_MIGRATION.md) for native verification and remaining qualification; older Electron test evidence does not establish Rust parity.
 
@@ -10,11 +10,11 @@ The queue is sequential, held in memory, and not automatically resumed after res
 
 Use **Reconnect session** in a failed remote pane, or the reconnect icon under Open sessions, to restore browsing after a connection drop. This preserves the session ID and pane path, and keeps editor copies bound to the session. It uses the existing session credentials and server trust checks. Active transfers use their own connections; reconnecting the browser does not restart a failed transfer. Use the queue's explicit Retry action after checking any already completed files.
 
-Folder copies preflight unsupported types/conflicts before creating folders, and cap recursion at 100 levels / 100,000 entries. Links and special files are refused, not dereferenced. Parent paths are canonicalised before overlap checks. Delete removes only regular files, links, or empty directories; it never recursively deletes a directory tree.
+Folder copies preflight unsupported types/conflicts before creating folders, and cap recursion at 100 levels / 100,000 entries. Links and special files are refused, not dereferenced. Parent paths are canonicalised before overlap checks. Recursive delete is explicitly confirmed, preflights the full selection with the same 100-level / 100,000-item limits, and removes symbolic links without following their targets.
 
 ## Concurrent changes
 
-Text saves compare SHA-256 content hashes both before upload and immediately before commit. Copies compare source size and modification time before commit. This detects many conflicts, but FTP and ordinary SFTP do not provide an atomic compare-and-swap operation: another writer can still change a path between the final check and rename. FTP no-overwrite behaviour is also server-dependent if another writer races the existence check. Do not treat this preview as a concurrent synchronisation tool.
+Text saves compare SHA-256 content hashes both before upload and immediately before commit. Copies compare source size and modification time before commit. This detects many conflicts, but FTP and ordinary SFTP do not provide an atomic compare-and-swap operation: another writer can still change a path between the final check and rename. FTP no-overwrite behaviour is also server-dependent if another writer races the existence check. Do not treat this beta as a concurrent synchronisation tool.
 
 ## Permissions and ownership
 

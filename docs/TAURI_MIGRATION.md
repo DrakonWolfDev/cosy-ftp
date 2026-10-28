@@ -1,6 +1,6 @@
 # Rust + Tauri migration
 
-Working-tree migration started 26 October 2026, targeting 0.4.0. This is a development preview; the 0.3.0 Electron test evidence does not qualify the Rust implementation.
+Working-tree migration started 26 October 2026, targeting 0.4.0. The application reached beta status with 0.4.9; the 0.3.0 Electron test evidence does not qualify the Rust implementation.
 
 ## Current release preparation
 
@@ -22,7 +22,7 @@ On 27 October 2026, Andrew confirmed the qualification work through release prep
 
 Install current stable Rust and the [official platform prerequisites](https://v2.tauri.app/start/prerequisites/), then `npm ci` and `npm run dev`. Windows also needs native [Strawberry Perl](https://strawberryperl.com/) for the statically bundled OpenSSL SSH dependency; set `PERL` to its perl.exe if it is not on PATH. This is a build prerequisite only. Linux uses its system OpenSSL development libraries. Use `npm run build` for a native executable, or `npm run dist` for packages. Old outputs directly under `release/` remain Electron artifacts; new local preview artifacts are kept separately under `release/tauri/`.
 
-`npm test` runs Rust unit tests. `npm run test:protocol` runs the explicitly ignored Python loopback integration tests (install `tests/requirements.txt` first). Set `COSY_PYTHON` when Python is not named `python3`. `npm run test:legacy` retains the prototype service suite.
+`npm test` runs Rust unit tests. `npm run test:protocol` runs the explicitly ignored Python loopback integration tests (install `tests/requirements.txt` first). Set `COSY_PYTHON` when Python is not named `python3`. The removed Electron prototype suite remains available in Git history.
 
 For native window checks, install `tauri-driver` and the platform WebDriver, build an executable with embedded assets (`cargo build --manifest-path src-tauri/Cargo.toml --features custom-protocol` after `npm run build:ui` for a debug build), then run `python scripts/tauri-smoke.py <executable>`. Headless Linux needs `xvfb-run -a`. `COSY_TAURI_DRIVER` and `COSY_NATIVE_DRIVER` can specify driver paths. Reports and screenshots go under `.test-artifacts/tauri/`; `COSY_SMOKE_ARTIFACTS` overrides the output folder.
 

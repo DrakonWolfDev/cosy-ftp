@@ -34,9 +34,14 @@ test('only a complete, unambiguous package set produces the website event and va
       `cosy-ftp-${version}-windows-sources.tar.gz`,
       `cosy-ftp-${version}-linux-sources.tar.gz`,
       `cosy-ftp-${version}-linux-system-sources.tar.gz`,
-      'NATIVE_NOTICES_windows.txt', 'NATIVE_NOTICES_linux.txt', 'LINUX_SYSTEM_NOTICES.txt',
-      'native-inventory-windows.json', 'native-inventory-linux.json', 'linux-payload-inventory.json',
-    ]) fs.writeFileSync(path.join(input, name), name);
+      'NATIVE_NOTICES_windows.txt',
+      'NATIVE_NOTICES_linux.txt',
+      'LINUX_SYSTEM_NOTICES.txt',
+      'native-inventory-windows.json',
+      'native-inventory-linux.json',
+      'linux-payload-inventory.json',
+    ])
+      fs.writeFileSync(path.join(input, name), name);
     prepare(input, output, event);
     const payload = JSON.parse(fs.readFileSync(event)).client_payload;
     assert.equal(payload.project, 'cosy_ftp');

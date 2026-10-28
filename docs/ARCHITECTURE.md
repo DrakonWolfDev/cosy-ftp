@@ -2,7 +2,7 @@
 
 ## Prototype history
 
-The 0.1–0.3 previews used Electron + TypeScript + React to prove transfer and editor behaviours using `ssh2` and `basic-ftp`. Their footprint did not establish the lightweight-product requirement. The implementation and its tests remain available as migration references.
+The 0.1–0.3 previews used Electron + TypeScript + React to prove transfer and editor behaviours using `ssh2` and `basic-ftp`. Their footprint did not establish the lightweight-product requirement. That obsolete implementation and its Node-only dependencies were removed after the Rust/Tauri migration reached parity; its history remains available in Git.
 
 ## Confirmed product direction (26 October 2026)
 
