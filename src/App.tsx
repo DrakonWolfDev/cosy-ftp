@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { queueOrder } from './queue-order';
+import { transferEstimate } from './transfer-estimate';
 import { createPortal } from 'react-dom';
 import { BrandMark } from './BrandMark';
 import { WolfUpdate } from './WolfUpdate';
@@ -117,6 +119,9 @@ function FilePane(props: PaneProps) {
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(500);
   const scrollContainer = useRef<HTMLDivElement>(null);
+  const rubberBand = useRef<{ x: number; y: number; clientX: number; clientY: number; base: string[]; name?: string; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const [selectionBox, setSelectionBox] = useState<{ left: number; top: number; width: number; height: number }>();
   const selectedNames = useMemo(() => new Set(selection), [selection]);
   useEffect(() => {
     const element = scrollContainer.current;
@@ -437,6 +442,58 @@ function FilePane(props: PaneProps) {
       <div
         className="file-table"
         ref={scrollContainer}
+        onPointerDown={(event) => {
+          if (event.button !== 0 || busy || !listing) return;
+          const target = event.target as HTMLElement;
+          if (event.shiftKey || target.closest('button, input, thead, .pane-empty')) return;
+          const element = event.currentTarget;
+          const rect = element.getBoundingClientRect();
+          rubberBand.current = {
+            x: event.clientX - rect.left + element.scrollLeft,
+            y: event.clientY - rect.top + element.scrollTop,
+            clientX: event.clientX, clientY: event.clientY,
+            base: event.ctrlKey || event.metaKey || event.shiftKey ? selection : [],
+            name: target.closest<HTMLTableRowElement>('tr[data-name]')?.dataset.name, moved: false,
+          };
+          suppressClick.current = false;
+          element.setPointerCapture(event.pointerId);
+          element.focus();
+          event.preventDefault();
+        }}
+        onPointerMove={(event) => {
+          const band = rubberBand.current;
+          if (!band) return;
+          if (!band.moved && Math.hypot(event.clientX - band.clientX, event.clientY - band.clientY) < 5) return;
+          band.moved = true;
+          suppressClick.current = true;
+          const element = event.currentTarget;
+          const rect = element.getBoundingClientRect();
+          if (event.clientY > rect.bottom - 24) element.scrollTop += 20;
+          if (event.clientY < rect.top + 58) element.scrollTop -= 20;
+          const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left)) + element.scrollLeft;
+          const y = Math.max(34, Math.min(rect.height, event.clientY - rect.top)) + element.scrollTop;
+          const top = Math.min(band.y, y);
+          const bottom = Math.max(band.y, y);
+          setSelectionBox({ left: Math.min(band.x, x), top, width: Math.abs(x - band.x), height: bottom - top });
+          const names = entries.filter((_, index) => (index + 2) * 34 > top && (index + 1) * 34 < bottom).map((entry) => entry.name);
+          setSelection([...new Set([...band.base, ...names])]);
+        }}
+        onPointerUp={(event) => {
+          if (!rubberBand.current) return;
+          if (!rubberBand.current.moved) {
+            const entry = entries.find((entry) => entry.name === rubberBand.current?.name);
+            if (entry) toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey);
+            else setSelection(rubberBand.current.base);
+            suppressClick.current = true;
+          }
+          rubberBand.current = null;
+          setSelectionBox(undefined);
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={() => { rubberBand.current = null; setSelectionBox(undefined); }}
+        onClickCapture={(event) => {
+          if (suppressClick.current) { event.stopPropagation(); suppressClick.current = false; }
+        }}
         onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         role="group"
         tabIndex={0}
@@ -455,6 +512,7 @@ function FilePane(props: PaneProps) {
           }
         }}
       >
+        {selectionBox && <div className="selection-box" style={selectionBox} aria-hidden="true" />}
         <table aria-rowcount={entries.length + 1} inert={busy}>
           <thead>
             <tr>
@@ -498,12 +556,14 @@ function FilePane(props: PaneProps) {
             {visibleEntries.map((entry, index) => (
               <tr
                 key={entry.name}
+                data-name={entry.name}
                 aria-rowindex={firstRow + index + 2}
                 className={selectedNames.has(entry.name) ? 'selected' : ''}
                 onClick={(event) => toggle(entry, event.ctrlKey || event.metaKey, event.shiftKey)}
                 onDoubleClick={() => void open(entry)}
-                draggable
+                draggable={!busy}
                 onDragStart={(event) => {
+                  if (rubberBand.current) { event.preventDefault(); return; }
                   const names = selectedNames.has(entry.name) ? selection : [entry.name];
                   setSelection(names);
                   event.dataTransfer.setData(
@@ -518,9 +578,11 @@ function FilePane(props: PaneProps) {
                     type="checkbox"
                     aria-label={`Select ${entry.name}`}
                     checked={selectedNames.has(entry.name)}
-                    onChange={(event) =>
-                      toggle(entry, true, Boolean((event.nativeEvent as MouseEvent).shiftKey))
-                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggle(entry, true, event.shiftKey);
+                    }}
+                    onChange={() => { /* Selection is handled by the click, including Shift. */ }}
                   />
                 </td>
                 <td>
@@ -948,6 +1010,13 @@ function Queue({
   onRefresh(): void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [now, setNow] = useState(Date.now());
+  const running = jobs.some((job) => job.state === 'running');
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
   const active = jobs.filter((job) => job.state === 'running' || job.state === 'queued');
   const needsAttention = active.length > 0 || jobs.some((job) => job.state === 'failed');
   useEffect(() => {
@@ -1000,7 +1069,7 @@ function Queue({
               </p>
             </div>
           ) : (
-            [...jobs].reverse().map((job) => (
+            queueOrder(jobs).map((job) => (
               <div className={`queue-job ${job.state}`} key={job.id}>
                 <div className="job-icon">
                   {job.state === 'running' ? (
@@ -1045,6 +1114,7 @@ function Queue({
                 <span className="job-size">
                   {bytes(job.bytes)}
                   {job.total !== null ? ` / ${bytes(job.total)}` : ''}
+                  {job.state === 'running' && <small className="job-estimate">{transferEstimate(job, now)}</small>}
                 </span>
                 {['queued', 'running'].includes(job.state) && (
                   <button
@@ -2148,7 +2218,7 @@ export default function App() {
               then choose it from either pane.
             </p>
             <p>
-              Select files with their checkboxes, then use <strong>Copy</strong> or drag them to the
+              Select files with their checkboxes or drag a selection box from the size/date columns or empty space, then use <strong>Copy</strong> or drag them to the
               other pane. Copying between servers streams through this computer.
             </p>
             <p>
@@ -2163,6 +2233,7 @@ export default function App() {
               Changed originals are protected.
             </p>
             <p>
+              Click the first file, then hold <strong>Shift</strong> and click the last file to select the entire range.{' '}
               Use <strong>Ctrl+A</strong> in the file list to select visible items,{' '}
               <strong>Enter</strong> on a filename to open it, and <strong>Backspace</strong> in the
               list to go up.

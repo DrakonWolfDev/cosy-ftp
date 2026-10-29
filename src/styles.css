@@ -906,7 +906,7 @@ tr.selected .file-date {
   color: var(--muted);
 }
 .queue-content {
-  max-height: 200px;
+  max-height: 176px;
   overflow: auto;
   border-top: 1px solid var(--line-soft);
 }
@@ -937,6 +937,8 @@ tr.selected .file-date {
   margin-top: 6px;
 }
 .queue-job {
+  height: 87px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -1565,4 +1567,24 @@ h2 {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.selection-box {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.file-table { user-select: none; }
+.job-estimate { display: block; margin-top: 5px; font-size: 10px; }
+.job-error { max-height: 32px; overflow: auto; }
+.job-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Keep the running transfer visible while browsing the rest of the queue. */
+.queue-job.running {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
 }

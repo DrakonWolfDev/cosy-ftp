@@ -49,7 +49,7 @@ jobs:
         run: python scripts/native-notices.py
       - run: npm run check
       - name: Release artifact and approval contract
-        run: node --test tests/release.test.cjs
+        run: node --experimental-strip-types --test tests/release.test.cjs tests/transfer-estimate.test.cjs tests/queue-selection.test.cjs
       - run: npm run test:protocol
       - name: Optimized GLib security regression
         if: runner.os == 'Linux'

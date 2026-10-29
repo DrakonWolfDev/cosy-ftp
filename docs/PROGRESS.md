@@ -148,3 +148,12 @@ See [RELIABILITY.md](RELIABILITY.md) for recovery instructions and known protoco
 - All 14 release assets are present, and all 13 manifest hashes match GitHub's upload digests. The website handoff passed, the live manifest shows 0.4.8, and Windows/DEB/RPM/AppImage links returned HTTP 200.
 - Release: https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.8
 - Release verification: https://github.com/DrakonWolfDev/cosy-ftp/actions/runs/40576474045
+
+## 29 October 2026 - 0.5.0 beta local test builds
+
+- Added transfer time estimates, a two-row scrollable queue, desktop pane drag-and-drop support, and drag selection.
+- Version metadata is 0.5.0; the existing beta product label remains. Windows x64 NSIS/standalone and Debian amd64 test packages were built successfully in `release/tauri/0.5.0/`, with SHA-256 checksums. UI/type checking and four estimate/release-contract tests passed; Debian metadata confirms version 0.5.0 and amd64. Interactive testing remains for the user. No release, tag, or publication is authorized.
+
+- Testing follow-up: running transfers stay pinned above waiting jobs (enqueue order); the next running job takes over automatically. Shift-click range selection bypasses box selection and uses mouse modifiers directly for checkboxes. Queue succession and off-screen/reverse selection regression tests pass. Local 0.5.0 test packages rebuilt; no publication.
+
+- Owner subsequently authorized commit, push and 0.5.0 beta publication. The release pipeline must qualify the final source and generate the distributable package/source/notice assets before publishing.

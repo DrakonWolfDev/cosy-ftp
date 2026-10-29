@@ -2,6 +2,10 @@
 
 Updated 27 October 2026. The repository is now public following owner approval and successful Windows/Linux hosted verification. The 0.4.8 preview is now published with verified installers, notices and matching sources.
 
+## 0.5.0 beta release authorization - 29 October 2026
+
+The owner authorized committing, pushing and publishing 0.5.0 beta after local Windows/Debian test builds. UI/type checking and queue/selection/estimate regression tests passed. The tagged pipeline must pass native Windows/Linux verification, package/source/notice checks and publication before this version is considered released. Build status will be checked at spaced intervals.
+
 ## Unreleased fixes verified 29 October 2026
 
 - FTP/FTPS downloads reconnect and retry only the current uncommitted file after recognised socket failures. Replacement connections use baseline `LIST` metadata checks instead of re-probing `STAT`.

@@ -10,7 +10,7 @@ Browse local folders or independent SFTP, explicit FTPS and FTP sessions in eith
 
 ## Project status
 
-The latest working source is the 0.4.9 beta. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; the 0.4.9 recursive-delete hotfix was confirmed on Linux Mint before release preparation. Verification is recorded in [the progress notes](docs/PROGRESS.md). Published beta releases and matching sources are available from [GitHub Releases](https://github.com/DrakonWolfDev/cosy-ftp/releases); platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
+The latest working source is the 0.5.0 beta. Everyday use of 0.4.6 was confirmed on Windows, Linux Mint and Fedora; the 0.4.9 recursive-delete hotfix was confirmed on Linux Mint before release preparation. Verification is recorded in [the progress notes](docs/PROGRESS.md). Published beta releases and matching sources are available from [GitHub Releases](https://github.com/DrakonWolfDev/cosy-ftp/releases); platform downloads are listed on the [Wolf Forge project page](https://wolf-forge.co.uk/cosy-ftp.html).
 
 ## Licence and contributions
 

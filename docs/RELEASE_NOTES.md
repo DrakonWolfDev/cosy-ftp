@@ -1,3 +1,11 @@
+# 0.5.0 beta - transfer queue and file selection
+
+- Show approximate time remaining for active transfers once size and progress are available.
+- Keep the running transfer pinned above waiting operations in a two-row scrollable queue.
+- Enable dragging files between the desktop panes and drag selection from empty space or size/date columns.
+- Support Shift-click ranges through filenames, checkboxes and file rows, including off-screen files.
+- Includes the download recovery and recursive-deletion fixes recorded below.
+
 # Unreleased fixes - 29 October 2026
 
 - Recursive local deletion now handles Windows directory links and junctions without following their targets. The existing recursive remote deletion support is retained.
