@@ -2,6 +2,14 @@
 
 Updated 27 October 2026. The repository is now public following owner approval and successful Windows/Linux hosted verification. The 0.4.8 preview is now published with verified installers, notices and matching sources.
 
+## Unreleased fixes verified 29 October 2026
+
+- FTP/FTPS downloads reconnect and retry only the current uncommitted file after recognised socket failures. Replacement connections use baseline `LIST` metadata checks instead of re-probing `STAT`.
+- The owner confirmed the previously failing bulk download completes with test build 6. The underlying connection abort is still unexplained; recovery handles the tested case.
+- Local non-empty folder deletion now removes nested contents after explicit confirmation, without following symbolic links or junctions. Owner testing confirmed deletion works.
+- Validation passed: 27 backend unit tests; FTP/FTPS forced-disconnection recovery and bounded-failure checks; separate 1,000-file FTP and FTPS downloads; metadata fallback checks; Windows directory-junction preservation; production UI and Windows release builds. The FTPS bulk regression covered TLS 1.3 with 3,000 resumed protected data connections and no reconnects on loopback.
+- Persistent diagnostic logs retain transfer errors and connection steps. Temporary binaries and private server logs are excluded from source control. No release has been published for these fixes.
+
 ## 0.4.8 publication completed
 
 - Published [0.4.8 preview](https://github.com/DrakonWolfDev/cosy-ftp/releases/tag/v0.4.8) from commit `eec51975ed4373fe7dccd05ada299ec94a5bcbf2`.

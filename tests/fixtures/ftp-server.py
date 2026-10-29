@@ -13,10 +13,37 @@ from pyftpdlib.servers import FTPServer
 
 root = Path(sys.argv[1]).resolve()
 tls = len(sys.argv) > 2 and sys.argv[2] == 'tls'
-resume_version = sys.argv[3] if len(sys.argv) > 3 else None
+fixture_mode = sys.argv[3] if tls and len(sys.argv) > 3 else (sys.argv[2] if not tls and len(sys.argv) > 2 else '')
+fixture_modes = fixture_mode.split(',')
+resume_version = next((mode for mode in fixture_modes if mode in ('12', '13')), None)
 authorizer = DummyAuthorizer()
 authorizer.add_user('tester', 'test-password', str(root), perm='elradfmwMT')
 class FixtureHandler(TLS_FTPHandler if tls else FTPHandler):
+    def ftp_RETR(self, path):
+        marker = root.parent / 'dropped-control.txt'
+        if 'drop-always' in fixture_modes or ('drop-once' in fixture_modes and not marker.exists()):
+            marker.write_text('dropped', encoding='utf-8')
+            self.close()
+            return
+        return super().ftp_RETR(path)
+
+    def ftp_STAT(self, path):
+        if 'reject-stat-after-drop' in fixture_modes and (root.parent / 'dropped-control.txt').exists():
+            (root.parent / 'unexpected-stat.txt').write_text('STAT reprobed', encoding='utf-8')
+            self.close()
+            return
+        if 'no-stat' in fixture_modes:
+            self.respond('502 STAT not implemented')
+            return
+        with (root.parent / 'metadata-events.txt').open('a', encoding='utf-8') as events:
+            events.write('STAT\n')
+        return super().ftp_STAT(path)
+
+    def ftp_LIST(self, path):
+        with (root.parent / 'metadata-events.txt').open('a', encoding='utf-8') as events:
+            events.write('LIST\n')
+        return super().ftp_LIST(path)
+
     def on_login(self, username):
         with (root.parent / 'login-events.txt').open('a', encoding='utf-8') as events:
             events.write(username + '\n')

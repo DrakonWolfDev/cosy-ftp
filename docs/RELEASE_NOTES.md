@@ -1,3 +1,12 @@
+# Unreleased fixes - 29 October 2026
+
+- Recursive local deletion now handles Windows directory links and junctions without following their targets. The existing recursive remote deletion support is retained.
+- FTP metadata checks use fresh LIST-style `STAT` replies over the control connection when supported, reducing data-socket churn in bulk transfers. Unsupported reply formats and older servers fall back to `LIST`.
+- Persistent, bounded diagnostic logs include transfer failures and FTP startup steps. This does not yet establish that the reported Windows socket error is fixed on the affected server.
+- FTP downloads to local storage reconnect after recognised socket failures, retrying only the current uncommitted file up to twice and retaining completed files. Tests cover successful recovery and bounded persistent failure.
+- Replacement download connections use baseline `LIST` metadata checks rather than retrying optional `STAT` probes. A forced-disconnection FTPS regression verifies recovery when the replacement session rejects `STAT`. The original remote connection abort remains under investigation.
+- Owner testing confirmed the affected bulk download completes with recovery and local non-empty folder deletion works. These changes have not been published in a release.
+
 # 0.4.9 beta.1 — recursive-delete hotfix
 
 - Non-empty folders can now be deleted recursively after explicit confirmation.

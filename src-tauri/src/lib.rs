@@ -1,5 +1,6 @@
 mod editor;
 mod endpoint;
+mod ftp_data;
 mod ftps_transport;
 mod ftps_trust;
 mod model;
@@ -309,7 +310,7 @@ impl Runtime {
                         endpoint.plan_remove(path, 0, &mut plan)?;
                     }
                     for (path, directory) in plan {
-                        endpoint.remove(&path, directory)?;
+                        if !endpoint.remote() && !directory { endpoint.remove_selected(&path)?; } else { endpoint.remove(&path, directory)?; }
                     }
                     Ok(json!(true))
                 } else {
@@ -437,6 +438,8 @@ pub fn run() {
             if std::env::var_os("COSY_USER_DATA").is_none() { state::import_electron(&directory)?; }
             let home = directories::BaseDirs::new().context("Could not find home directory")?.home_dir().to_string_lossy().into_owned();
             app.manage(Arc::new(Runtime::load(directory, home)?));
+            let runtime = app.state::<Arc<Runtime>>();
+            runtime.log(app.handle(), &format!("Cosy FTP started; build {}; log: {}", env!("COSY_BUILD_ID"), runtime.directory.join("diagnostics.log").display()), false);
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .on_navigation(trusted_url)
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)

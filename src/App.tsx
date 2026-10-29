@@ -2153,7 +2153,8 @@ export default function App() {
             </p>
             <p>
               <strong>Move</strong> works within the same server or local filesystem. Destination
-              names must be unused. Delete is permanent and folders must be empty.
+              names must be unused. Delete is permanent; non-empty folders and their contents are
+              deleted recursively after confirmation.
             </p>
             <p>
               Select a file and choose Edit, or double-click a UTF-8 text file (up to 10 MiB),

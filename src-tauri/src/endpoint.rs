@@ -10,6 +10,7 @@ use std::{
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
     path::Path,
+    sync::{Arc, Mutex},
     time::{Duration, UNIX_EPOCH},
 };
 use suppaftp::{native_tls::TlsConnector, ImplFtpStream};
@@ -17,7 +18,23 @@ use suppaftp::{native_tls::TlsConnector, ImplFtpStream};
 pub enum Endpoint {
     Local,
     Sftp(SftpEndpoint),
-    Ftp(ImplFtpStream<Stream>),
+    Ftp(FtpEndpoint),
+}
+pub struct FtpEndpoint {
+    stream: ImplFtpStream<Stream>,
+    phase: Arc<Mutex<String>>,
+    stat_listing: bool,
+}
+impl std::ops::Deref for FtpEndpoint {
+    type Target = ImplFtpStream<Stream>;
+    fn deref(&self) -> &Self::Target {
+        &self.stream
+    }
+}
+impl std::ops::DerefMut for FtpEndpoint {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.stream
+    }
 }
 const MAX_TREE_DEPTH: usize = 100;
 const MAX_TREE_ITEMS: usize = 100_000;
@@ -161,22 +178,39 @@ impl Endpoint {
                     anyhow!("FTP authentication failed. Check the username and password.")
                 })?;
             ftp.transfer_type(suppaftp::types::FileType::Binary)?;
-            ftp = ftp.passive_stream_builder(|address| {
-                let stream = TcpStream::connect_timeout(&address, Duration::from_secs(20))
+            let phase = Arc::new(Mutex::new(String::new()));
+            let data_phase = phase.clone();
+            ftp = ftp.passive_stream_builder(move |address| {
+                *data_phase.lock().unwrap() = format!("opening data socket to {address}");
+                let stream = crate::ftp_data::connect(address)
                     .map_err(suppaftp::FtpError::ConnectionError)?;
+                *data_phase.lock().unwrap() = format!("setting read timeout on data socket to {address}");
                 stream
                     .set_read_timeout(Some(Duration::from_secs(30)))
                     .map_err(suppaftp::FtpError::ConnectionError)?;
+                *data_phase.lock().unwrap() = format!("setting write timeout on data socket to {address}");
                 stream
                     .set_write_timeout(Some(Duration::from_secs(30)))
                     .map_err(suppaftp::FtpError::ConnectionError)?;
+                *data_phase.lock().unwrap() = format!("data socket ready to {address}; sending transfer command / reading control reply");
                 Ok(stream)
             });
-            Ok(Self::Ftp(ftp))
+            Ok(Self::Ftp(FtpEndpoint {
+                stream: ftp,
+                phase,
+                stat_listing: true,
+            }))
         }
     }
     pub fn remote(&self) -> bool {
         !matches!(self, Self::Local)
+    }
+    pub(crate) fn prepare_recovered_download(&mut self) {
+        if let Self::Ftp(f) = self {
+            // Recover with baseline LIST checks rather than re-probing STAT on
+            // every replacement session. The reported recovery failed at this probe.
+            f.stat_listing = false;
+        }
     }
     pub fn canonical(&mut self, path: &str) -> Result<String> {
         safe_text(path, 32768)?;
@@ -218,7 +252,8 @@ impl Endpoint {
                 .collect(),
             Self::Ftp(f) => {
                 // LIST preserves link types, unlike servers that dereference MLSD links.
-                f.list(Some(path))?
+                f.list(Some(path))
+                    .with_context(|| format!("FTP listing failed for {path}"))?
                     .into_iter()
                     .map(|line| {
                         let file: suppaftp::list::File =
@@ -257,6 +292,49 @@ impl Endpoint {
     }
     pub fn stat(&mut self, path: &str) -> Result<Entry> {
         safe_text(path, 32768)?;
+        // STAT returns LIST-style metadata over the existing control socket. Keep
+        // fresh type/size/time checks without opening another data socket per check.
+        // Use the parent so directory contents cannot be mistaken for the directory.
+        if path != "/" {
+            if let Self::Ftp(f) = self {
+                if f.stat_listing {
+                    let response = f.custom_command(
+                        format!("STAT {}", parent(path, true)),
+                        &[suppaftp::Status::Directory, suppaftp::Status::File],
+                    );
+                    let response = match response {
+                        Ok(response) => Some(response),
+                        // Do not include System in expected codes: the library treats
+                        // 211- as a FEAT opener and otherwise leaves its body unread.
+                        Err(suppaftp::FtpError::UnexpectedResponse(response))
+                            if response.status == suppaftp::Status::System =>
+                        {
+                            Some(response)
+                        }
+                        Err(suppaftp::FtpError::UnexpectedResponse(response))
+                            if response.status.code() != 421 =>
+                        {
+                            None
+                        }
+                        Err(error) => return Err(error.into()),
+                    };
+                    if let Some(response) = response {
+                        if let Ok(body) = response.as_string() {
+                            if let Some(entries) = stat_entries(&body, &parent(path, true)) {
+                                return entries
+                                    .into_iter()
+                                    .find(|entry| entry.name == basename(path, true))
+                                    .ok_or_else(|| {
+                                        std::io::Error::from(std::io::ErrorKind::NotFound).into()
+                                    });
+                            }
+                        }
+                    }
+                    // Older/unusual servers retain the existing LIST behaviour.
+                    f.stat_listing = false;
+                }
+            }
+        }
         match self {
             Self::Local => local_stat(Path::new(path)),
             Self::Sftp(s) => Ok(sftp_entry(path.to_owned(), s.lstat(Path::new(path))?)),
@@ -353,6 +431,24 @@ impl Endpoint {
         }
         Ok(())
     }
+    pub fn remove_selected(&mut self, path: &str) -> Result<()> {
+        let entry = self.stat(path)?;
+        if matches!(self, Self::Local) && entry.kind == "directory" {
+            // Rust's recursive removal does not traverse symbolic links or junctions.
+            fs::remove_dir_all(path)?;
+            Ok(())
+        } else {
+            #[cfg(windows)]
+            if matches!(self, Self::Local) && entry.kind == "link" {
+                use std::os::windows::fs::MetadataExt;
+                if fs::symlink_metadata(path)?.file_attributes() & 0x10 != 0 {
+                    fs::remove_dir(path)?;
+                    return Ok(());
+                }
+            }
+            self.remove(path, entry.kind == "directory")
+        }
+    }
     pub fn rename(&mut self, from: &str, to: &str, replace: bool) -> Result<()> {
         safe_text(from, 32768)?;
         safe_text(to, 32768)?;
@@ -420,7 +516,17 @@ impl Endpoint {
                 writing: false,
             }),
             Self::Sftp(s) => Box::new(s.open(Path::new(path))?),
-            Self::Ftp(f) => Box::new(f.retr_as_stream(path)?),
+            Self::Ftp(f) => {
+                *f.phase.lock().unwrap() =
+                    "sending PASV / reading passive reply on control connection".into();
+                let result = f.retr_as_stream(path);
+                Box::new(result.with_context(|| {
+                    format!(
+                        "FTP download could not start for {path}; last step: {}",
+                        f.phase.lock().unwrap()
+                    )
+                })?)
+            }
         })
     }
     pub fn writer(&mut self, path: &str) -> Result<Box<dyn FileStream>> {
@@ -483,6 +589,67 @@ impl Endpoint {
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
+fn stat_entries(body: &str, directory: &str) -> Option<Vec<Entry>> {
+    let lines = body.lines().collect::<Vec<_>>();
+    if lines.len() < 2 || lines[0].as_bytes().get(3) != Some(&b'-') {
+        return None;
+    }
+    let mut entries = Vec::new();
+    for line in &lines[1..lines.len() - 1] {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        // The generic parser also accepts bare MLSX names, including status prose.
+        // Accept only a full LIST record so prose never becomes file metadata.
+        let file = suppaftp::list::ListParser::parse_posix(line)
+            .or_else(|_| suppaftp::list::ListParser::parse_dos(line))
+            .ok()?;
+        let name = file.name();
+        if name == "." || name == ".." {
+            continue;
+        }
+        safe_name(name, true).ok()?;
+        entries.push(Entry {
+            path: join(directory, name, true).ok()?,
+            name: name.to_owned(),
+            kind: if file.is_symlink() {
+                "link"
+            } else if file.is_directory() {
+                "directory"
+            } else if file.is_file() {
+                "file"
+            } else {
+                "other"
+            }
+            .into(),
+            size: file.size() as u64,
+            modified: file
+                .modified()
+                .duration_since(UNIX_EPOCH)
+                .ok()
+                .map(|t| t.as_millis() as u64),
+            mode: None,
+        });
+    }
+    Some(entries)
+}
+
+#[cfg(test)]
+mod stat_tests {
+    use super::*;
+    #[test]
+    fn control_listing_preserves_types_and_rejects_unparseable_metadata() {
+        let body = "213-Status\r\n-rw-r--r-- 1 owner group 17 Oct 29 2026 a.json\r\nlrwxrwxrwx 1 owner group 6 Oct 29 2026 shortcut -> target\r\n213 End\r\n";
+        let entries = stat_entries(body, "/data").unwrap();
+        assert_eq!(entries[0].path, "/data/a.json");
+        assert_eq!(entries[0].size, 17);
+        assert_eq!(entries[1].kind, "link");
+        assert!(stat_entries("213-Status\r\nunknown format\r\n213 End\r\n", "/data").is_none());
+        assert!(stat_entries("213 Server status only\r\n", "/data").is_none());
+    }
+}
+
 fn local_stat(path: &Path) -> Result<Entry> {
     let stat = fs::symlink_metadata(path)?;
     #[cfg(unix)]

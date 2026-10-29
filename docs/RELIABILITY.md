@@ -10,9 +10,13 @@ The queue is sequential, held in memory, and not automatically resumed after res
 
 Use **Reconnect session** in a failed remote pane, or the reconnect icon under Open sessions, to restore browsing after a connection drop. This preserves the session ID and pane path, and keeps editor copies bound to the session. It uses the existing session credentials and server trust checks. Active transfers use their own connections; reconnecting the browser does not restart a failed transfer. Use the queue's explicit Retry action after checking any already completed files.
 
-Folder copies preflight unsupported types/conflicts before creating folders, and cap recursion at 100 levels / 100,000 entries. Links and special files are refused, not dereferenced. Parent paths are canonicalised before overlap checks. Recursive delete is explicitly confirmed, preflights the full selection with the same 100-level / 100,000-item limits, and removes symbolic links without following their targets.
+Folder copies preflight unsupported types/conflicts before creating folders, and cap recursion at 100 levels / 100,000 entries. Links and special files are refused, not dereferenced. Parent paths are canonicalised before overlap checks. Recursive delete preflights the full selection with the same 100-level / 100,000-item limits. Local symbolic links and junctions are removed without following their targets.
 
 ## Concurrent changes
+
+During FTP downloads to local storage, recognised socket failures trigger up to two reconnections for the current uncommitted file. Staging cleanup must succeed before retrying. Progress from discarded staging copies is rolled back; completed files are retained. This recovery does not resume a queue after application restart or retry uploads.
+
+FTP metadata checks prefer LIST-style `STAT` replies over the existing control connection, retaining fresh link/type, size and time checks without opening a data socket for each check. Servers with unsupported commands or formats fall back to `LIST` for that connection. Directory listings still use `LIST`.
 
 Text saves compare SHA-256 content hashes both before upload and immediately before commit. Copies compare source size and modification time before commit. This detects many conflicts, but FTP and ordinary SFTP do not provide an atomic compare-and-swap operation: another writer can still change a path between the final check and rename. FTP no-overwrite behaviour is also server-dependent if another writer races the existence check. Do not treat this beta as a concurrent synchronisation tool.
 

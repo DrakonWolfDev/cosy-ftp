@@ -150,7 +150,7 @@ impl Runtime {
             .into();
             job.error = result.err().map(|e| {
                 format!(
-                    "{e}{}",
+                    "{e:#}{}",
                     if job.files > 0 {
                         format!(
                             " ({} completed files remain at the destination.)",
@@ -162,6 +162,9 @@ impl Runtime {
                 )
             });
             job.finished_at = Some(now());
+            if let Some(error) = &job.error {
+                runtime.log(&app, &format!("Transfer {} failed: {error}", job.id), true);
+            }
             runtime.update_job(&app, &job);
         });
     }
@@ -267,15 +270,25 @@ impl Runtime {
         let mut last_update = Instant::now();
         for (from, to, _) in plan.files {
             check_cancel(cancel)?;
-            let result = copy_file(
+            let result = copy_with_recovery(
                 &mut source,
                 &mut target,
                 &from,
                 &to,
                 job.request.overwrite,
                 cancel,
-                |bytes| {
-                    job.bytes += bytes;
+                |attempt, error| {
+                    self.log(app, &format!("FTP download connection failed for {from}: {error:#}. Reconnecting ({attempt}/2); completed files are retained."), true);
+                    let endpoint = self.make_endpoint(app, &source_session)?;
+                    self.log(app, "FTP download connection restored; retrying the current file", false);
+                    Ok(endpoint)
+                },
+                |bytes, restart| {
+                    if restart {
+                        job.bytes = job.bytes.saturating_sub(bytes);
+                    } else {
+                        job.bytes += bytes;
+                    }
                     if last_update.elapsed().as_millis() >= 100 {
                         self.update_job(app, job);
                         last_update = Instant::now();
@@ -305,6 +318,102 @@ impl Runtime {
 fn check_cancel(cancel: &AtomicBool) -> Result<()> {
     ensure!(!cancel.load(Ordering::SeqCst), "Transfer cancelled");
     Ok(())
+}
+
+fn retryable_connection_error(error: &anyhow::Error) -> bool {
+    fn socket_error(error: &std::io::Error) -> bool {
+        error.raw_os_error() == Some(10013)
+            || matches!(
+                error.kind(),
+                std::io::ErrorKind::ConnectionReset
+                    | std::io::ErrorKind::ConnectionAborted
+                    | std::io::ErrorKind::BrokenPipe
+                    | std::io::ErrorKind::UnexpectedEof
+                    | std::io::ErrorKind::TimedOut
+            )
+    }
+    error.chain().any(|cause| {
+        if let Some(suppaftp::FtpError::ConnectionError(error)) =
+            cause.downcast_ref::<suppaftp::FtpError>()
+        {
+            return socket_error(error);
+        }
+        cause
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(socket_error)
+    })
+}
+
+/// Replays only an uncommitted FTP download, using a fresh authenticated connection.
+/// `progress(bytes, true)` rolls back bytes reported by a discarded staging copy.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn copy_with_recovery(
+    source: &mut Endpoint,
+    target: &mut Endpoint,
+    from: &str,
+    to: &str,
+    overwrite: bool,
+    cancel: &AtomicBool,
+    mut reconnect: impl FnMut(u8, &anyhow::Error) -> Result<Endpoint>,
+    mut progress: impl FnMut(u64, bool),
+) -> std::result::Result<(), (anyhow::Error, String)> {
+    let eligible = matches!(source, Endpoint::Ftp(_)) && matches!(target, Endpoint::Local);
+    for attempt in 0..=2 {
+        let mut bytes = 0;
+        let result = copy_file(source, target, from, to, overwrite, cancel, |count| {
+            bytes += count;
+            progress(count, false);
+        });
+        match result {
+            Err((error, stage))
+                if eligible
+                    && attempt < 2
+                    && retryable_connection_error(&error)
+                    && !cancel.load(Ordering::SeqCst) =>
+            {
+                // Never leave multiple partial copies behind when replaying a file.
+                if target.exists(&stage).unwrap_or(true) && target.remove(&stage, false).is_err() {
+                    return Err((
+                        anyhow::anyhow!(
+                            "{error:#}. Could not remove temporary file before retry: {stage}"
+                        ),
+                        stage,
+                    ));
+                }
+                progress(bytes, true);
+                std::thread::sleep(std::time::Duration::from_millis(250 * (attempt as u64 + 1)));
+                if let Err(error) = check_cancel(cancel) {
+                    return Err((error, stage));
+                }
+                // Release the failed session before authenticating its replacement.
+                drop(std::mem::replace(source, Endpoint::Local));
+                *source = reconnect(attempt + 1, &error).map_err(|reconnect_error| (anyhow::anyhow!("FTP reconnect failed: {reconnect_error:#}. Original failure: {error:#}"), stage))?;
+                source.prepare_recovered_download();
+            }
+            result => return result,
+        }
+    }
+    unreachable!()
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use super::*;
+    #[test]
+    fn recognises_socket_denial_through_ftp_context_but_not_file_permissions() {
+        let error = anyhow::Error::new(suppaftp::FtpError::ConnectionError(
+            std::io::Error::from_raw_os_error(10013),
+        ))
+        .context("FTP download start");
+        assert!(retryable_connection_error(&error));
+        assert!(!retryable_connection_error(
+            &std::io::Error::new(std::io::ErrorKind::PermissionDenied, "local access denied")
+                .into()
+        ));
+        assert!(!retryable_connection_error(&anyhow::anyhow!(
+            "Source changed while transferring"
+        )));
+    }
 }
 #[derive(Default)]
 struct Plan {

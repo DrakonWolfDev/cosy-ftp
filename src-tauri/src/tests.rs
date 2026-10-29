@@ -65,6 +65,70 @@ fn recursive_delete_plans_children_first_and_does_not_follow_links() {
     assert_eq!(fs::read_to_string(outside).unwrap(), "outside");
 }
 #[test]
+fn selected_local_folder_deletion_removes_nested_contents() {
+    let temp = tempfile::tempdir().unwrap();
+    let selected = temp.path().join("selected");
+    let keep = temp.path().join("keep.json");
+    fs::create_dir_all(selected.join("nested/deeper")).unwrap();
+    fs::write(selected.join("nested/deeper/data.json"), "{}").unwrap();
+    fs::write(&keep, "keep").unwrap();
+    Endpoint::Local
+        .remove_selected(selected.to_str().unwrap())
+        .unwrap();
+    assert!(!selected.exists());
+    assert_eq!(fs::read_to_string(keep).unwrap(), "keep");
+}
+
+#[test]
+fn selected_local_folder_deletion_does_not_follow_directory_links() {
+    let temp = tempfile::tempdir().unwrap();
+    let selected = temp.path().join("selected");
+    let outside = temp.path().join("outside");
+    fs::create_dir(&selected).unwrap();
+    fs::create_dir(&outside).unwrap();
+    fs::write(outside.join("keep.json"), "keep").unwrap();
+    let link = selected.join("link");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, &link).unwrap();
+    #[cfg(windows)]
+    assert!(Command::new("cmd")
+        .args(["/c", "mklink", "/J"])
+        .arg(&link)
+        .arg(&outside)
+        .output()
+        .unwrap()
+        .status
+        .success());
+    Endpoint::Local
+        .remove_selected(selected.to_str().unwrap())
+        .unwrap();
+    assert_eq!(
+        fs::read_to_string(outside.join("keep.json")).unwrap(),
+        "keep"
+    );
+    // Selecting a directory link itself must also leave the target intact.
+    let direct = temp.path().join("direct-link");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, &direct).unwrap();
+    #[cfg(windows)]
+    assert!(Command::new("cmd")
+        .args(["/c", "mklink", "/J"])
+        .arg(&direct)
+        .arg(&outside)
+        .output()
+        .unwrap()
+        .status
+        .success());
+    Endpoint::Local
+        .remove_selected(direct.to_str().unwrap())
+        .unwrap();
+    assert!(fs::symlink_metadata(direct).is_err());
+    assert_eq!(
+        fs::read_to_string(outside.join("keep.json")).unwrap(),
+        "keep"
+    );
+}
+#[test]
 fn atomic_settings_roundtrip_and_corruption_preservation() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("connections.json");
@@ -397,6 +461,233 @@ fn real_ftp_binary_upload_download_and_cancel() {
         fs::read_to_string(server.root.join("keep.bin")).unwrap(),
         "original"
     );
+}
+#[test]
+#[ignore = "requires Python loopback protocol fixtures"]
+fn ftp_download_recovers_from_control_loss_and_bounds_persistent_failures() {
+    for mode in ["drop-once", "drop-always"] {
+        let server = server_mode("ftp-server.py", false, Some(mode));
+        fs::write(server.root.join("data.json"), "{\"id\":42}").unwrap();
+        let p = profile("ftp", server.port);
+        let mut ftp = Endpoint::connect(&p, "test-password", |_, _| unreachable!()).unwrap();
+        let destination = tempfile::tempdir().unwrap();
+        let target = destination.path().join("data.json");
+        let mut reconnects = 0;
+        let mut bytes = 0u64;
+        let result = crate::transfers::copy_with_recovery(
+            &mut ftp,
+            &mut Endpoint::Local,
+            "/data.json",
+            target.to_str().unwrap(),
+            false,
+            &AtomicBool::new(false),
+            |_, _| {
+                reconnects += 1;
+                Endpoint::connect(&p, "test-password", |_, _| unreachable!())
+            },
+            |count, restart| {
+                if restart {
+                    bytes -= count;
+                } else {
+                    bytes += count;
+                }
+            },
+        );
+        if mode == "drop-once" {
+            result.unwrap();
+            assert_eq!(reconnects, 1);
+            assert_eq!(fs::read_to_string(&target).unwrap(), "{\"id\":42}");
+            assert_eq!(bytes, 9);
+        } else {
+            assert!(result.is_err());
+            assert_eq!(reconnects, 2);
+            assert!(!target.exists());
+        }
+        assert!(fs::read_dir(destination.path()).unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .ends_with(".part")));
+    }
+}
+#[test]
+#[ignore = "requires Python loopback protocol fixtures"]
+fn ftps_download_recovers_from_control_loss() {
+    let server = server_mode(
+        "ftp-server.py",
+        true,
+        Some("drop-once,reject-stat-after-drop"),
+    );
+    fs::write(server.root.join("data.json"), "{\"id\":42}").unwrap();
+    let p = profile("ftps", server.port);
+    let connect = || {
+        Endpoint::connect_with_ftps_trust(&p, "test-password", std::sync::Arc::new(|_| Ok(true)))
+    };
+    let mut ftp = connect().unwrap();
+    let destination = tempfile::tempdir().unwrap();
+    let target = destination.path().join("data.json");
+    let mut reconnects = 0;
+    let result = crate::transfers::copy_with_recovery(
+        &mut ftp,
+        &mut Endpoint::Local,
+        "/data.json",
+        target.to_str().unwrap(),
+        false,
+        &AtomicBool::new(false),
+        |_, _| {
+            reconnects += 1;
+            connect()
+        },
+        |_, _| {},
+    );
+    result.unwrap();
+    assert_eq!(reconnects, 1);
+    assert_eq!(fs::read_to_string(target).unwrap(), "{\"id\":42}");
+    assert!(
+        !server
+            .root
+            .parent()
+            .unwrap()
+            .join("unexpected-stat.txt")
+            .exists(),
+        "Recovered sessions must not repeat STAT probes"
+    );
+}
+#[test]
+#[ignore = "requires Python loopback protocol fixtures"]
+fn ftp_downloads_1000_json_files_without_metadata_data_sockets() {
+    let server = server("ftp-server.py", false);
+    let destination = tempfile::tempdir().unwrap();
+    for number in 0..1000 {
+        fs::write(
+            server.root.join(format!("{number:04}.json")),
+            format!("{{\"id\":{number}}}"),
+        )
+        .unwrap();
+    }
+    let mut ftp = Endpoint::connect(
+        &profile("ftp", server.port),
+        "test-password",
+        |_, _| unreachable!(),
+    )
+    .unwrap();
+    for number in 0..1000 {
+        let name = format!("{number:04}.json");
+        let target = destination.path().join(&name);
+        copy_file(
+            &mut ftp,
+            &mut Endpoint::Local,
+            &format!("/{name}"),
+            target.to_str().unwrap(),
+            false,
+            &AtomicBool::new(false),
+            |_| {},
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(target).unwrap(),
+            format!("{{\"id\":{number}}}")
+        );
+    }
+    let events =
+        fs::read_to_string(server.root.parent().unwrap().join("metadata-events.txt")).unwrap();
+    assert_eq!(events.lines().filter(|line| *line == "STAT").count(), 2000);
+    assert!(!events.contains("LIST"));
+}
+#[test]
+#[ignore = "requires Python loopback protocol fixtures"]
+fn ftps_bulk_1000_json_with_list_fallback_and_tls13_resumption() {
+    let server = server_mode("ftp-server.py", true, Some("13,no-stat"));
+    let remote_dir = "/deployments/test/profiles/BANKING/PlayerDataBase";
+    let source_dir = server.root.join(remote_dir.trim_start_matches('/'));
+    fs::create_dir_all(&source_dir).unwrap();
+    for number in 0..1000 {
+        fs::write(
+            source_dir.join(format!("{number:017}.json")),
+            format!("{{\"id\":{number},\"data\":\"{}\"}}", "x".repeat(160)),
+        )
+        .unwrap();
+    }
+    let p = profile("ftps", server.port);
+    let connect = || {
+        Endpoint::connect_with_ftps_trust(&p, "test-password", std::sync::Arc::new(|_| Ok(true)))
+    };
+    let mut source = connect().unwrap();
+    let destination = tempfile::tempdir().unwrap();
+    let mut reconnects = 0;
+    for number in 0..1000 {
+        let name = format!("{number:017}.json");
+        let from = format!("{remote_dir}/{name}");
+        let target = destination.path().join(&name);
+        crate::transfers::copy_with_recovery(
+            &mut source,
+            &mut Endpoint::Local,
+            &from,
+            target.to_str().unwrap(),
+            false,
+            &AtomicBool::new(false),
+            |_, _| {
+                reconnects += 1;
+                connect()
+            },
+            |_, _| {},
+        )
+        .unwrap_or_else(|error| {
+            panic!("File {number} failed after {reconnects} reconnects: {error:?}")
+        });
+        assert_eq!(
+            fs::read(&target).unwrap(),
+            fs::read(source_dir.join(&name)).unwrap()
+        );
+    }
+    assert_eq!(reconnects, 0);
+    let metadata =
+        fs::read_to_string(server.root.parent().unwrap().join("metadata-events.txt")).unwrap();
+    assert_eq!(
+        metadata.lines().filter(|line| *line == "LIST").count(),
+        2000
+    );
+    let resumptions =
+        fs::read_to_string(server.root.parent().unwrap().join("resumption-events.txt")).unwrap();
+    assert_eq!(
+        resumptions
+            .lines()
+            .filter(|line| *line == "resumed")
+            .count(),
+        3000
+    );
+}
+#[test]
+#[ignore = "requires Python loopback protocol fixtures"]
+fn ftp_metadata_uses_control_channel_and_falls_back_for_older_servers() {
+    for unsupported in [false, true] {
+        let server = server_mode(
+            "ftp-server.py",
+            false,
+            if unsupported { Some("no-stat") } else { None },
+        );
+        fs::write(server.root.join("data.json"), "{}").unwrap();
+        let mut ftp = Endpoint::connect(
+            &profile("ftp", server.port),
+            "test-password",
+            |_, _| unreachable!(),
+        )
+        .unwrap();
+        assert_eq!(ftp.stat("/data.json").unwrap().size, 2);
+        assert_eq!(ftp.stat("/data.json").unwrap().kind, "file");
+        assert!(!ftp.exists("/missing.json").unwrap());
+        let events =
+            fs::read_to_string(server.root.parent().unwrap().join("metadata-events.txt")).unwrap();
+        if unsupported {
+            assert!(events.contains("LIST"));
+        } else {
+            assert!(events.contains("STAT"));
+            assert!(
+                !events.contains("LIST"),
+                "Metadata checks must not open LIST data sockets: {events}"
+            );
+        }
+    }
 }
 #[test]
 #[ignore = "requires Python loopback protocol fixtures"]

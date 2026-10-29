@@ -294,6 +294,26 @@ impl Runtime {
         let _ = app.emit("cosy:jobs", self.jobs.lock().unwrap().clone());
     }
     pub fn log(&self, app: &AppHandle, message: &str, error: bool) {
+        // No protocol traffic or credentials; retain bounded diagnostics across restarts.
+        static LOG_LOCK: Mutex<()> = Mutex::new(());
+        if let Ok(_guard) = LOG_LOCK.lock() {
+            use std::io::Write;
+            let path = self.directory.join("diagnostics.log");
+            if fs::metadata(&path).is_ok_and(|m| m.len() > 2 * 1024 * 1024) {
+                let previous = self.directory.join("diagnostics.previous.log");
+                let _ = fs::remove_file(&previous);
+                let _ = fs::rename(&path, previous);
+            }
+            if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
+                let _ = writeln!(
+                    file,
+                    "{} {} {}",
+                    now(),
+                    if error { "ERROR" } else { "INFO" },
+                    message.replace(['\r', '\n'], " ")
+                );
+            }
+        }
         let _ = app.emit("cosy:log", json!({"time": now(), "level": if error { "error" } else { "info" }, "message": message}));
     }
     pub fn initialise(&self) -> Value {
